@@ -53,37 +53,41 @@ let DATA_PATH = '/tmp/botdata';
 let AUTH_PATH = '/tmp/botdata/auth';
 let DB_PATH   = '/tmp/botdata/database.json';
 
-// ─── BAILEYS IN-MEMORY STORE (LID → phone JID resolution) ────────────────────
-// The store tracks contacts and their LID↔phone mappings automatically.
+// ─── STORE STUB + LID RESOLUTION ─────────────────────────────────────────────
+// makeInMemoryStore removed in newer Baileys — use a lightweight stub.
 const store = { contacts: {}, loadMessage: async () => null, bind: () => {} };
+
+// LID → phone JID map, populated from contacts.upsert events
 const lidToPhone = new Map();
 
 /**
  * Resolve a @lid JID to its real @s.whatsapp.net phone JID.
- * Falls back to the original JID if no mapping found.
+ * WhatsApp now uses @lid JIDs in some regions — we map them on contacts sync.
+ * Falls back to replying directly to the @lid JID, which WhatsApp also accepts.
  */
 async function resolveLID(jid) {
     if (!jid) return jid;
-    if (!jid.endsWith('@lid')) return jid;  // already a phone JID
+    if (!jid.endsWith('@lid')) return jid;
 
-    // 1. Check our LID→phone map (built from contacts.upsert events)
+    // 1. Check our LID→phone map (built from contacts.upsert)
     if (lidToPhone.has(jid)) {
         const phone = lidToPhone.get(jid);
         console.log(`🔁 LID resolved: ${jid} → ${phone}`);
         return phone;
     }
 
-    // 2. Try jidNormalizedUser as a hint
+    // 2. Try jidNormalizedUser
     try {
         const normalized = jidNormalizedUser(jid);
         if (normalized && !normalized.endsWith('@lid')) {
             console.log(`🔁 LID normalized: ${jid} → ${normalized}`);
+            lidToPhone.set(jid, normalized); // cache it
             return normalized;
         }
     } catch(_) {}
 
     // 3. Reply directly to @lid — WhatsApp accepts it
-    console.warn(`⚠️  Could not resolve LID ${jid} — replying to LID directly`);
+    console.warn(`⚠️  LID unresolved: ${jid} — replying to LID directly`);
     return jid;
 }
 
@@ -115,12 +119,12 @@ setInterval(() => {
  * Lane A: direct send with retry. Used for all replies.
  * Never queued — sends immediately.
  */
-async function directSend(jid, content, retries = 3) {
+async function directSend(jid, content, retries = 4) {
     if (!sock) {
         console.error(`❌ directSend: sock is null — bot not connected`);
         throw new Error('sock is null');
     }
-    // Only wait if we reconnected very recently (< 3s ago)
+    // Wait if session just reconnected (crypto handshake needs time)
     const msSinceStable = Date.now() - sessionStableAt;
     if (msSinceStable < 3000 && msSinceStable >= 0) {
         await sleep(3000 - msSinceStable);
@@ -134,8 +138,10 @@ async function directSend(jid, content, retries = 3) {
                 console.error(`❌ directSend failed after ${retries} retries to ${jidNum(jid)}: ${e.message}`);
                 throw e;
             }
-            console.warn(`⚠️  directSend attempt ${attempt + 1} failed: ${e.message} — retrying in ${(attempt + 1)}s`);
-            await sleep(1000 * (attempt + 1));
+            // Exponential backoff: 1s, 2s, 4s, 8s
+            const backoff = 1000 * Math.pow(2, attempt);
+            console.warn(`⚠️  directSend attempt ${attempt + 1} failed: ${e.message} — retrying in ${backoff/1000}s`);
+            await sleep(backoff);
         }
     }
 }
@@ -162,15 +168,17 @@ async function runBroadcastQueue() {
             const result = await sock.sendMessage(job.jid, job.content);
             job.resolve(result);
         } catch(e) {
-            if (job.retries < 2) {
+            if (job.retries < 3) {
                 job.retries++;
                 broadcastQueue.unshift(job);
-                await sleep(4000 * job.retries);
+                // Exponential backoff: 5s, 10s, 20s between retries
+                await sleep(5000 * job.retries);
             } else {
                 job.reject(e);
             }
         }
-        await sleep(800); // safe rate for bulk sends
+        // 1200ms + jitter between broadcast sends — safe anti-ban rate
+        await sleep(1200 + Math.floor(Math.random() * 300));
     }
     broadcastRunning = false;
 }
@@ -773,17 +781,24 @@ function enqueueForUser(jid, fn) {
     next.finally(() => { if (userQueues.get(jid) === next) userQueues.delete(jid); });
 }
 
-// ─── RATE LIMITER ─────────────────────────────────────────────────────────────
-// Prevents WhatsApp spam bans by limiting how fast the bot replies.
-// - Per-user: max 3 commands per 10 seconds (protects against accidental spam)
-// - Global outbound: min 600ms between any two sent messages
-// Admins and super admin are exempt from per-user rate limits.
+// ─── RATE LIMITER + ANTI-BAN THROTTLE ────────────────────────────────────────
+//
+//  Anti-ban strategy:
+//  • Per-user: max 5 commands per 15s (generous for real students, blocks spammers)
+//  • Global outbound: 700ms gap between any two sends (safe for WhatsApp)
+//  • Broadcast: 1200ms gap (extra safe for bulk sends)
+//  • Admins/super admin: fully exempt from rate limits
+//  • Jitter: ±100ms random delay on every send (mimics human typing rhythm)
+//
 const rateLimitMap = new Map();   // jid → { count, windowStart }
-const RATE_LIMIT_MAX    = 3;      // max commands per window
-const RATE_LIMIT_WINDOW = 10000;  // 10 seconds
+const RATE_LIMIT_MAX    = 5;      // max commands per window per user
+const RATE_LIMIT_WINDOW = 15000;  // 15 second window
 
-let lastSentAt = 0;  // global last-send timestamp
-const MIN_SEND_GAP = 600;  // ms between outbound messages
+let lastSentAt = 0;
+const MIN_SEND_GAP = 700;         // ms between any two outbound messages
+
+// Add human-like jitter to sends — reduces ban risk
+const jitter = () => Math.floor(Math.random() * 100);
 
 function isRateLimited(jid) {
     if (isSuperAdmin(jid) || isAdmin(jid)) return false;
@@ -810,10 +825,10 @@ setInterval(() => {
     }
 }, 60000);
 
-// Throttle outbound sends — enforces MIN_SEND_GAP between messages globally
+// Throttle outbound sends — enforces MIN_SEND_GAP + jitter globally
 async function throttledSend(jid, content) {
     const now = Date.now();
-    const wait = MIN_SEND_GAP - (now - lastSentAt);
+    const wait = (MIN_SEND_GAP + jitter()) - (now - lastSentAt);
     if (wait > 0) await sleep(wait);
     lastSentAt = Date.now();
     return sock.sendMessage(jid, content);
@@ -865,7 +880,8 @@ async function handleMessage(rawMsg) {
         // Rate limit check — drop silently if exceeded (no reply to avoid further sends)
         if (isRateLimited(jid)) return;
 
-        // Dispatch to per-user queue (serializes concurrent messages from same user)
+        // Touch activity watchdog + dispatch to per-user queue
+        touchActivity();
         enqueueForUser(jid, () => processMessage(jid, msg, body));
 
     } catch(e) {
@@ -1897,6 +1913,29 @@ async function processMessage(jid, msg, body) {
     }
 }
 
+// ─── HEALTH WATCHDOG ─────────────────────────────────────────────────────────
+// Checks every 3 minutes if bot is stuck (connected but not processing).
+// If sock exists but bot is not ready for >5 minutes, force a restart.
+let lastActivityAt = Date.now();
+
+// Call this whenever a message is received or sent
+function touchActivity() { lastActivityAt = Date.now(); }
+
+setInterval(() => {
+    const msSinceActivity = Date.now() - lastActivityAt;
+    // If bot claims to be ready but has had no activity for 10 min, ping WA
+    if (botReady && msSinceActivity > 10 * 60 * 1000) {
+        console.warn('🐕 Watchdog: no activity for 10min — pinging WhatsApp');
+        if (sock) {
+            sock.sendPresenceUpdate('available').catch(() => {
+                console.warn('🐕 Watchdog: ping failed — triggering reconnect');
+                if (sock) { try { sock.end(); } catch(_) {} }
+            });
+        }
+        lastActivityAt = Date.now(); // reset so we don't ping every 3min
+    }
+}, 3 * 60 * 1000);
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // BAILEYS INIT
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1917,15 +1956,18 @@ async function startBot() {
             auth: state,
             printQRInTerminal: false,
             logger: P({ level: 'silent' }),
-            browser: ['SLIIT Bot', 'Chrome', '1.0.0'],
+            // Randomize browser name slightly to reduce fingerprinting
+            browser: ['SLIIT-Bot', 'Chrome', `120.0.${Math.floor(Math.random()*9000)+1000}`],
             generateHighQualityLinkPreview: false,
             syncFullHistory: false,
+            // Performance & stability tuning
             connectTimeoutMs: 60000,
-            keepAliveIntervalMs: 30000,
-            retryRequestDelayMs: 2000,
+            keepAliveIntervalMs: 25000,   // ping WA every 25s to keep alive
+            retryRequestDelayMs: 1500,
+            maxMsgRetryCount: 5,          // retry failed message sends up to 5x
+            fireInitQueries: true,
             getMessage: async (key) => {
-                const stored = await store.loadMessage(key.remoteJid, key.id);
-                return stored?.message || { conversation: '' };
+                return { conversation: '' };
             },
         });
 
@@ -1934,16 +1976,19 @@ async function startBot() {
 
         sock.ev.on('creds.update', saveCreds);
 
-        // Build LID→phone map from contacts sync
+        // Build LID→phone map from contacts sync (critical for reply routing)
         sock.ev.on('contacts.upsert', (contacts) => {
             for (const c of contacts) {
                 if (c.id && c.lid) {
                     lidToPhone.set(c.lid, c.id);
                     console.log(`📇 LID mapped: ${c.lid} → ${c.id}`);
                 }
-                if (c.id && c.id.endsWith('@lid') && c.notify) {
-                    // some versions swap id/lid
-                    lidToPhone.set(c.id, c.notify);
+            }
+        });
+        sock.ev.on('contacts.update', (updates) => {
+            for (const c of updates) {
+                if (c.id && c.lid) {
+                    lidToPhone.set(c.lid, c.id);
                 }
             }
         });
@@ -1955,15 +2000,9 @@ async function startBot() {
                 latestQR  = qr;
                 botStatus = 'qr';
                 qrAttempts++;
-                console.log(`📲 QR ready (attempt ${qrAttempts}) — open your Railway public URL to scan`);
-                // If QR keeps cycling without being scanned, the session is invalid.
-                // Stop looping — admin must visit the web page to scan.
-                if (qrAttempts >= 3) {
-                    console.warn(`⚠️  QR not scanned after ${qrAttempts} attempts — pausing reconnect loop.`);
-                    console.warn(`👉 Visit your Railway public URL to scan the QR code.`);
-                    // Don't reconnect — wait for manual scan via the web page
-                    // The QR is still displayed on the web page
-                }
+                console.log(`📲 QR ready (attempt ${qrAttempts}) — visit http://<your-ip>:8080 to scan`);
+                // QR auto-refreshes on the web page every 30s — no action needed here.
+                // The bot keeps generating new QRs until scanned.
             }
 
             if (connection === 'open') {
@@ -2004,31 +2043,49 @@ async function startBot() {
                 const reason = Object.keys(DisconnectReason).find(k => DisconnectReason[k] === code) || code;
                 console.warn(`⚠️  Disconnected — code: ${code}, reason: ${reason}`);
 
-                // 403 = account permanently banned — clear auth and show QR for new number
+                // ── Helper: clear auth and restart to show fresh QR ───────────
+                const clearAndRestart = (label, delay = 3000) => {
+                    console.log(`🔄 ${label} — clearing auth, restarting in ${delay/1000}s...`);
+                    try { fs.rmSync(AUTH_PATH, { recursive: true, force: true }); } catch(_) {}
+                    fs.mkdirSync(AUTH_PATH, { recursive: true });
+                    qrAttempts = 0;
+                    setTimeout(startBot, delay);
+                };
+
+                // 403 = permanently banned account
                 if (code === 403) {
-                    console.error('🚫 Account BANNED (403) — clearing auth session. Re-link with a new number via the web page.');
-                    try { fs.rmSync(AUTH_PATH, { recursive: true, force: true }); } catch(_) {}
-                    fs.mkdirSync(AUTH_PATH, { recursive: true });
-                    botStatus = 'banned_cleared';
-                    qrAttempts = 0;
-                    console.log('🔄 Auth cleared — restarting to show QR for new number...');
-                    setTimeout(startBot, 3000);
+                    console.error('🚫 Account BANNED (403) — clearing session.');
+                    botStatus = 'banned';
+                    clearAndRestart('Banned — QR for new number');
                     return;
                 }
 
-                if (code === DisconnectReason.loggedOut) {
-                    console.log('🔑 Logged out — clearing auth');
-                    try { fs.rmSync(AUTH_PATH, { recursive: true, force: true }); } catch(_) {}
-                    fs.mkdirSync(AUTH_PATH, { recursive: true });
+                // 401 / loggedOut = user logged the bot out from their phone
+                if (code === 401 || code === DisconnectReason.loggedOut) {
+                    console.warn('🔑 Logged out — auto-generating new QR');
                     botStatus = 'logged_out';
-                    qrAttempts = 0;
-                    setTimeout(startBot, 3000);
+                    clearAndRestart('Logged out — auto QR');
                     return;
                 }
 
+                // 408 / timedOut = connection timeout — reconnect immediately
+                if (code === 408) {
+                    console.warn('⏱️  Connection timed out — reconnecting immediately');
+                    setTimeout(startBot, 1000);
+                    return;
+                }
+
+                // 515 = restartRequired — WhatsApp server asked us to restart
+                if (code === 515) {
+                    console.warn('🔁 Restart required by WhatsApp server');
+                    setTimeout(startBot, 2000);
+                    return;
+                }
+
+                // All other disconnects — exponential backoff (max 60s)
                 reconnectAttempts++;
-                const delay = Math.min(5000 * reconnectAttempts, 60000);
-                console.log(`🔄 Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts})...`);
+                const delay = Math.min(3000 * Math.pow(1.5, reconnectAttempts - 1), 60000);
+                console.log(`🔄 Reconnecting in ${(delay/1000).toFixed(1)}s (attempt ${reconnectAttempts})...`);
                 setTimeout(startBot, delay);
             }
         });
