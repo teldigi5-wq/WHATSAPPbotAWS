@@ -352,6 +352,8 @@ function loadDB() {
             if (!db.admins)        db.admins        = [];
             if (!db.banned)        db.banned        = [];
             if (!db.broadcasts)    db.broadcasts    = [];
+            if (!db.languages)     db.languages     = {};
+            if (!db.groupLinks)    db.groupLinks    = {};
             if (!db.groupLinks)    db.groupLinks    = {};
             console.log(`📦 DB loaded — ${Object.keys(db.registrations).length} registrations, ${Object.keys(db.waGroups).length} WA groups`);
         }
@@ -370,7 +372,20 @@ function saveDB() {
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const jidNum       = jid => (jid || '').replace(/@.*/, '').replace(/[^0-9]/g, '');
 const toJid        = num => `${num.replace(/[^0-9]/g, '')}@s.whatsapp.net`;
-const isSuperAdmin = jid => jidNum(jid) === jidNum(SUPER_ADMIN);
+const isSuperAdmin = jid => {
+    if (jidNum(jid) === jidNum(SUPER_ADMIN)) return true;
+    // Also check if this JID is registered as the super admin's IT number
+    const reg = db.registrations[jid];
+    if (reg && db.students[reg]) {
+        const stored = db.students[reg].whatsapp || '';
+        if (jidNum(stored) === jidNum(SUPER_ADMIN)) return true;
+    }
+    // Check if any registration maps to super admin number
+    for (const [j, id] of Object.entries(db.registrations)) {
+        if (jidNum(j) === jidNum(SUPER_ADMIN) && j === jid) return true;
+    }
+    return false;
+};
 const isAdmin      = jid => isSuperAdmin(jid) || db.admins.some(a => jidNum(a) === jidNum(jid));
 const isBanned     = jid => db.banned.some(b => jidNum(b) === jidNum(jid));
 const nowISO       = () => new Date().toISOString();
@@ -402,8 +417,20 @@ function fmtStudent(reg, info) {
 }
 
 // Append the bot footer to every outgoing reply
-function withFooter(text) {
-    return text + BOT_FOOTER;
+function withFooter(text) { return text + BOT_FOOTER; }
+function getLang(jid){return(db.languages&&db.languages[jid])||'en';}
+function timeGreeting(lang){
+  const h=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Colombo'})).getHours();
+  if(lang==='si'){
+    if(h>=5&&h<12)return'🌅 සුභ උදෑසනක්!';
+    if(h>=12&&h<17)return'☀️ සුභ දහවලක්!';
+    if(h>=17&&h<21)return'🌆 සුභ සවසක්!';
+    return'🌙 සුභ රාත්‍රියක්!';
+  }
+  if(h>=5&&h<12)return'🌅 Good Morning!';
+  if(h>=12&&h<17)return'☀️ Good Afternoon!';
+  if(h>=17&&h<21)return'🌆 Good Evening!';
+  return'🌙 Good Night!';
 }
 
 // ─── TIMETABLE HELPERS ────────────────────────────────────────────────────────
@@ -1049,15 +1076,17 @@ async function processMessage(jid, msg, body) {
         // ══════════════════════════════════════════════════════════════════════
 
         // ── HELP / HI / HELLO / START ─────────────────────────────────────────
-        if (cmd === 'HELP' || cmd === 'HI' || cmd === 'HELLO' || cmd === 'START') {
+        if (cmd === 'HELP' || cmd === 'HI' || cmd === 'HELLO' || cmd === 'START' || cmd === 'MENU') {
             const reg  = db.registrations[sid];
             const name = reg ? STUDENTS[reg]?.name?.split(' ')[0] : null;
-            const greeting = name ? `👋 Hi, *${name}!*` : `👋 *Welcome to SLIIT Y1S1 Bot!*`;
+            const greet=timeGreeting(getLang(sid));
+            const greeting=name?`👋 Hi, *${name}!*`:`👋 *Welcome to SLIIT Y1S1 Bot!*`;
             const lines = [
                 `╔═══════════════════════════╗`,
                 `  🤖 *SLIIT Y1S1 Assistant*`,
                 `╚═══════════════════════════╝`,
                 ``,
+                greet,
                 greeting,
                 ``,
                 `━━━━ 📌 *Start Here* ━━━━`,
@@ -1071,6 +1100,12 @@ async function processMessage(jid, msg, body) {
                 `*MYGROUPS*     Timetable & project group`,
                 `*MYLINK*       WhatsApp group invite link`,
                 `*CLASSMATES*   Who's in your project group`,
+                `*JOINGROUP <group>*  Get any group's invite link`,
+                ``,
+                `━━━━ 🌐 *Language* ━━━━`,
+                ``,
+                `*LANG SI*   සිංහල`,
+                `*LANG EN*   English`,
                 `*JOINGROUP <group>*  Get any group's link`,
                 `            e.g. JOINGROUP WD01`,
                 ``,
@@ -1089,12 +1124,22 @@ async function processMessage(jid, msg, body) {
                 ``,
                 `━━━━ ℹ️ *About* ━━━━`,
                 ``,
-                `🤖 *Created by Poojana Kaveesh*`,
-                `🆔 IT26101524  |  📱 94772197530`,
+                `📞 *SLIIT Help Center:* +94 11 754 4801`,
+                ``,
+                `⚠️ _This bot is not associated with SLIIT operations_`,
             ];
             if (isAdmin(sid)) lines.push(``, `🛡️ *Admin:* Send *ADMINHELP* for admin commands.`);
             await reply(withFooter(lines.join('\n')));
             return;
+        }
+
+        // ── LANG ─────────────────────────────────────────────────────────────
+        if(cmd==='LANG'){
+            if(!db.languages)db.languages={};
+            const ch=arg1.toUpperCase();
+            if(ch==='SI'||ch==='SINHALA'){db.languages[sid]='si';saveDB();await reply(withFooter('✅ භාෂාව සිංහලට සකසන ලදී!\n\nSend *HELP* to see menu.'));return;}
+            if(ch==='EN'||ch==='ENGLISH'){db.languages[sid]='en';saveDB();await reply(withFooter('✅ Language set to *English*!\n\nSend *HELP* to see menu.'));return;}
+            await reply(withFooter('🌐 *Choose language*\n\n*LANG EN* — English\n*LANG SI* — සිංහල'));return;
         }
 
         // ── REG ───────────────────────────────────────────────────────────────
@@ -2101,6 +2146,87 @@ async function processMessage(jid, msg, body) {
                 await sleep(800);
                 await reply(withFooter(lines.slice(half).join('\n')));
             }
+            return;
+        }
+
+        // ── FIXREG ───────────────────────────────────────────────────────────
+        if(cmd==='FIXREG'){
+            if(!isSuperAdmin(sid)){await reply(withFooter('❌ Super Admin only'));return;}
+            if(!arg1||!arg2){await reply(withFooter('❌ Usage: *FIXREG IT26XXXXXX 94XXXXXXXXX*'));return;}
+            const itNum=arg1.toUpperCase(),phone=arg2.replace(/[^0-9]/g,''),newJid=phone+'@s.whatsapp.net';
+            if(!STUDENTS[itNum]){await reply(withFooter('❌ Student ID not found: '+itNum));return;}
+            for(const[j,id]of Object.entries(db.registrations)){if(id===itNum)delete db.registrations[j];}
+            delete db.registrations[newJid];
+            db.registrations[newJid]=itNum;
+            if(db.students[itNum])db.students[itNum].whatsapp=newJid;
+            saveDB();
+            await reply(withFooter('✅ *Fixed!*\n\n🆔 '+itNum+'\n📱 '+phone+'\n\nStudent can now send MYINFO.'));
+            try{await directSend(newJid,{text:withFooter('✅ Your registration was fixed by admin!\n\nSend *MYINFO* to verify.')});}catch(_){}
+            return;
+        }
+
+        // ── RESETREG ──────────────────────────────────────────────────────────
+        if(cmd==='RESETREG'){
+            if(!isSuperAdmin(sid)){await reply(withFooter('❌ Super Admin only'));return;}
+            if(!arg1){await reply(withFooter('❌ Usage: *RESETREG IT26XXXXXX* or *RESETREG 94XXXXXXXXX*'));return;}
+            const q=arg1.toUpperCase();let rJid=null,rId=null;
+            if(q.startsWith('IT')){for(const[j,id]of Object.entries(db.registrations)){if(id===q){rJid=j;rId=id;break;}}}
+            else{const ph=arg1.replace(/[^0-9]/g,'');rJid=ph+'@s.whatsapp.net';rId=db.registrations[rJid];if(!rId){for(const[j,id]of Object.entries(db.registrations)){if(jidNum(j)===ph){rJid=j;rId=id;break;}}}}
+            if(!rJid||!rId){await reply(withFooter('❌ No registration found for '+arg1));return;}
+            delete db.registrations[rJid];
+            if(db.students[rId]){delete db.students[rId].whatsapp;delete db.students[rId].registeredAt;}
+            saveDB();
+            await reply(withFooter('✅ *Cleared!*\n\n🆔 '+rId+'\n📱 '+jidNum(rJid)+'\n\nThey can re-register now.'));
+            return;
+        }
+
+        // ── CLEARGROUP ────────────────────────────────────────────────────────
+        if(cmd==='CLEARGROUP'){
+            if(!isSuperAdmin(sid)){await reply(withFooter('❌ Super Admin only'));return;}
+            if(!arg1){await reply(withFooter('❌ Usage: *CLEARGROUP WD01*'));return;}
+            const sk=arg1.toUpperCase();
+            if(!db.waGroups[sk]){await reply(withFooter('❌ Slot '+sk+' not found.'));return;}
+            delete db.waGroups[sk];
+            if(db.groupLinks){const bp=sk.includes('_')?sk.split('_')[0]:sk;if(db.groupLinks[bp]?.slotKey===sk)delete db.groupLinks[bp];}
+            let n=0;for(const s of Object.values(db.students)){if(s.wa_group_slot===sk){delete s.wa_group_slot;n++;}}
+            saveDB();
+            await reply(withFooter('✅ *Group slot cleared!*\n\n📌 '+sk+'\n👥 Students reset: '+n));
+            return;
+        }
+
+        // ── STUDENTS — list all registered students ───────────────────────────
+        if(cmd==='STUDENTS'||cmd==='REGLIST'){
+            if(!isSuperAdmin(sid)){await reply(withFooter('❌ Super Admin only'));return;}
+            const regs=Object.entries(db.registrations);
+            if(regs.length===0){await reply(withFooter('⚠️ No students registered yet.'));return;}
+            const byGroup={};
+            for(const[jid,itNum]of regs){const pg=STUDENTS[itNum]?.project_group||'Unknown';if(!byGroup[pg])byGroup[pg]=[];byGroup[pg].push({jid,itNum,name:STUDENTS[itNum]?.name||itNum});}
+            const lines=['╔══════════════════════════╗','  👥 *Registered Students ('+regs.length+')*','╚══════════════════════════╝',''];
+            for(const pg of Object.keys(byGroup).sort()){lines.push('*'+pg+'* ('+byGroup[pg].length+')');for(const s of byGroup[pg])lines.push('  • '+s.itNum+' — '+s.name.split(' ').slice(0,2).join(' ')+' | '+jidNum(s.jid));lines.push('');}
+            lines.push('Total: *'+regs.length+'* registered');
+            const full=withFooter(lines.join('\n'));
+            if(full.length<=4000){await reply(full);}else{const m=Math.floor(lines.length/2);await reply(withFooter(lines.slice(0,m).join('\n')));await sleep(800);await reply(withFooter(lines.slice(m).join('\n')));}
+            return;
+        }
+
+        // ── GROUPS — list all created WA groups ───────────────────────────────
+        if(cmd==='GROUPS'||cmd==='GROUPSLIST'){
+            if(!isSuperAdmin(sid)){await reply(withFooter('❌ Super Admin only'));return;}
+            const slots=Object.entries(db.waGroups||{});
+            if(slots.length===0){await reply(withFooter('⚠️ No WA groups created yet.'));return;}
+            const lines=['╔══════════════════════════╗','  🏘️ *Created WA Groups ('+slots.length+')*','╚══════════════════════════╝',''];
+            for(const[slot,wg]of slots.sort(([a],[b])=>a.localeCompare(b))){
+                const mc=Object.values(db.students).filter(s=>s.wa_group_slot===slot).length;
+                const st=wg.botLeft?'🚪 Bot left':wg.adminPromoted?'👑 Admin set':'⏳ Pending';
+                lines.push('*'+slot+'* — '+wg.name);
+                lines.push('  👥 '+mc+' members | '+st);
+                lines.push('  🔗 '+(wg.inviteLink||'No link'));
+                lines.push('  📅 '+(wg.createdAt||'').slice(0,10));
+                lines.push('');
+            }
+            lines.push('Total: *'+slots.length+'* groups');
+            const full=withFooter(lines.join('\n'));
+            if(full.length<=4000){await reply(full);}else{const m=Math.floor(lines.length/2);await reply(withFooter(lines.slice(0,m).join('\n')));await sleep(800);await reply(withFooter(lines.slice(m).join('\n')));}
             return;
         }
 
