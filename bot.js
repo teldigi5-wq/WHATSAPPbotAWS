@@ -1,5 +1,5 @@
 const makeWASocket   = require('@whiskeysockets/baileys').default;
-const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, makeInMemoryStore, jidNormalizedUser } = require('@whiskeysockets/baileys');
+const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, jidNormalizedUser } = require('@whiskeysockets/baileys');
 const qrcode     = require('qrcode');
 const fs         = require('fs');
 const path       = require('path');
@@ -55,7 +55,8 @@ let DB_PATH   = '/tmp/botdata/database.json';
 
 // ─── BAILEYS IN-MEMORY STORE (LID → phone JID resolution) ────────────────────
 // The store tracks contacts and their LID↔phone mappings automatically.
-const store = makeInMemoryStore({ logger: P({ level: 'silent' }) });
+const store = { contacts: {}, loadMessage: async () => null, bind: () => {} };
+const lidToPhone = new Map();
 
 /**
  * Resolve a @lid JID to its real @s.whatsapp.net phone JID.
@@ -65,25 +66,24 @@ async function resolveLID(jid) {
     if (!jid) return jid;
     if (!jid.endsWith('@lid')) return jid;  // already a phone JID
 
-    // 1. Check store contacts (populated after first sync)
-    const contacts = store.contacts || {};
-    for (const [phoneJid, contact] of Object.entries(contacts)) {
-        if (contact.lid && contact.lid === jid) {
-            console.log(`🔁 LID resolved via store: ${jid} → ${phoneJid}`);
-            return phoneJid;
-        }
+    // 1. Check our LID→phone map (built from contacts.upsert events)
+    if (lidToPhone.has(jid)) {
+        const phone = lidToPhone.get(jid);
+        console.log(`🔁 LID resolved: ${jid} → ${phone}`);
+        return phone;
     }
 
     // 2. Try jidNormalizedUser as a hint
     try {
         const normalized = jidNormalizedUser(jid);
         if (normalized && !normalized.endsWith('@lid')) {
-            console.log(`🔁 LID resolved via normalize: ${jid} → ${normalized}`);
+            console.log(`🔁 LID normalized: ${jid} → ${normalized}`);
             return normalized;
         }
     } catch(_) {}
 
-    console.warn(`⚠️  Could not resolve LID ${jid} — using as-is`);
+    // 3. Reply directly to @lid — WhatsApp accepts it
+    console.warn(`⚠️  Could not resolve LID ${jid} — replying to LID directly`);
     return jid;
 }
 
@@ -1934,11 +1934,16 @@ async function startBot() {
 
         sock.ev.on('creds.update', saveCreds);
 
-        // Log LID→phone mappings as contacts sync in
+        // Build LID→phone map from contacts sync
         sock.ev.on('contacts.upsert', (contacts) => {
             for (const c of contacts) {
                 if (c.id && c.lid) {
-                    console.log(`📇 Contact mapped: ${c.id} ↔ LID ${c.lid}`);
+                    lidToPhone.set(c.lid, c.id);
+                    console.log(`📇 LID mapped: ${c.lid} → ${c.id}`);
+                }
+                if (c.id && c.id.endsWith('@lid') && c.notify) {
+                    // some versions swap id/lid
+                    lidToPhone.set(c.id, c.notify);
                 }
             }
         });
