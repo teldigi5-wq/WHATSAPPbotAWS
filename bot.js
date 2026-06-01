@@ -88,6 +88,10 @@ async function resolveLID(jid) {
 
     // 3. Reply directly to @lid — WhatsApp accepts it
     console.warn(`⚠️  LID unresolved: ${jid} — replying to LID directly`);
+    try {
+        const contact = await sock.onWhatsApp(jid.replace('@lid',''));
+        if (contact?.[0]?.jid) { lidToPhone.set(jid, contact[0].jid); return contact[0].jid; }
+    } catch(_) {}
     return jid;
 }
 
@@ -641,6 +645,7 @@ async function handleGroupAutoPromote(gid, slotKey, wg) {
         const firstMemberJid = firstMember.id;
 
         console.log(`👑 Auto-promoting first member in ${slotKey}: ${jidNum(firstMemberJid)}`);
+        await sleep(3000); // wait for member to fully join
 
         // Promote to admin
         try {
@@ -954,6 +959,7 @@ async function handleMessage(rawMsg) {
         // Normalize + resolve LID → real phone JID
         const normalizedJid = rawJid.includes('@') ? rawJid : `${rawJid}@s.whatsapp.net`;
         const jid = await resolveLID(normalizedJid);
+        const replyJid = normalizedJid; // always reply to original JID
 
         // ── Full key dump removed — LID resolution working fine ───────────────
         console.log(`📲 Resolved sender JID: ${jid}`);
@@ -986,7 +992,7 @@ async function handleMessage(rawMsg) {
 
         // Touch activity watchdog + dispatch to per-user queue
         touchActivity();
-        enqueueForUser(jid, () => processMessage(jid, msg, body));
+        enqueueForUser(jid, () => processMessage(replyJid, msg, body));
 
     } catch(e) {
         console.error(`❌ handleMessage error: ${e.message}`, e.stack);
