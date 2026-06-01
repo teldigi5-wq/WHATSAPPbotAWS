@@ -14,6 +14,7 @@ process.on('unhandledRejection', e => console.error('💥 unhandledRejection:', 
 const PORT        = process.env.PORT || 8080;
 // Your number — plain digits, no @s.whatsapp.net
 const SUPER_ADMIN = process.env.SUPER_ADMIN || '94772197530';
+const SUPER_ADMIN_LIDS = ['20985227042855'];
 
 // Bot credit shown at the bottom of every reply
 const BOT_FOOTER = [
@@ -373,6 +374,7 @@ function saveDB() {
 const jidNum       = jid => (jid || '').replace(/@.*/, '').replace(/[^0-9]/g, '');
 const toJid        = num => `${num.replace(/[^0-9]/g, '')}@s.whatsapp.net`;
 const isSuperAdmin = jid => {
+    if (SUPER_ADMIN_LIDS.includes(jidNum(jid))) return true;
     if (jidNum(jid) === jidNum(SUPER_ADMIN)) return true;
     // Also check if this JID is registered as the super admin's IT number
     const reg = db.registrations[jid];
