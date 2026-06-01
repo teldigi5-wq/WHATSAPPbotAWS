@@ -9,7 +9,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -e
 
-REPO_URL="https://github.com/YOUR_USERNAME/YOUR_REPO.git"   # ← change this
+REPO_URL="https://github.com/teldigi5-wq/WHATSAPPbotAWS.git"   # ← change this
 BOT_DIR="$HOME/whatsapp-bot"
 
 echo "============================================"
