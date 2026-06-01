@@ -1,0 +1,43 @@
+name: Deploy to AWS EC2
+
+# Triggers on every push to the main branch
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: SSH Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Pull the latest code on the EC2 instance and restart the bot
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}       # Your Elastic IP
+          username: ec2-user                   # Default Amazon Linux user
+          key: ${{ secrets.EC2_KEY }}          # Contents of your .pem file
+          port: 22
+          script: |
+            set -e
+
+            echo "==> Pulling latest code..."
+            cd ~/whatsapp-bot
+            git pull origin main
+
+            echo "==> Installing dependencies..."
+            npm install --production --ignore-scripts || npm install --ignore-scripts
+
+            echo "==> Ensuring /data/logs directory exists..."
+            mkdir -p /data/logs
+
+            echo "==> Restarting bot with PM2..."
+            pm2 restart ecosystem.config.js --update-env || pm2 start ecosystem.config.js
+
+            echo "==> Saving PM2 process list..."
+            pm2 save
+
+            echo "==> Done! Bot status:"
+            pm2 status

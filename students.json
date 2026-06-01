@@ -1,0 +1,2762 @@
+{
+  "IT26101700": {
+    "name": "Bandara H.M.T.T.R",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD01"
+  },
+  "IT26101383": {
+    "name": "Buddhadasa N S",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE01"
+  },
+  "IT26101266": {
+    "name": "Jayawardhana H.M.R.D.A",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD01"
+  },
+  "IT26101989": {
+    "name": "Dangalla Y. N.",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE01"
+  },
+  "IT26101291": {
+    "name": "Vithanage S. G. A.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD01"
+  },
+  "IT26101734": {
+    "name": "Devarajan A",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE01"
+  },
+  "IT26200849": {
+    "name": "Amarasinghe A.A.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD01"
+  },
+  "IT26102070": {
+    "name": "Wijesundara D.C.J",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE01"
+  },
+  "IT26300138": {
+    "name": "Fernando S.D.L",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD01"
+  },
+  "IT26101374": {
+    "name": "Wijayapala R.D.U.D",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE01"
+  },
+  "IT26101358": {
+    "name": "Gunatilake P.D.N.D",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD01"
+  },
+  "IT26101818": {
+    "name": "Nirmal K.H.L",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE01"
+  },
+  "IT26101697": {
+    "name": "De Sliva T.H.H",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD02"
+  },
+  "IT26102013": {
+    "name": "Lakcarl A V",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE02"
+  },
+  "IT26101241": {
+    "name": "Rupasinghe R.A.D.N",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD02"
+  },
+  "IT26101981": {
+    "name": "Umer M.F",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE02"
+  },
+  "IT26101682": {
+    "name": "Adhikari R.A.S.B",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD02"
+  },
+  "IT26101634": {
+    "name": "Dewmini P.G.S",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE02"
+  },
+  "IT26102177": {
+    "name": "Shashiprabha M N",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD02"
+  },
+  "IT26101943": {
+    "name": "Jayasinghe M. H. S.",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE02"
+  },
+  "IT26102176": {
+    "name": "Karunathilaka D.S.D",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD02"
+  },
+  "IT26101240": {
+    "name": "Perera M. C. R.",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE02"
+  },
+  "IT26101333": {
+    "name": "Methsara K. A. P.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD02"
+  },
+  "IT26101683": {
+    "name": "Perera D.F.A.N.K",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE02"
+  },
+  "IT26101691": {
+    "name": "Rajapaksha R. M. A. N.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD03"
+  },
+  "IT26102009": {
+    "name": "Arthur J.M.",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE03"
+  },
+  "IT26101237": {
+    "name": "Polgampala P. M. G. B.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD03"
+  },
+  "IT26101902": {
+    "name": "Gunawardena D. D.",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE03"
+  },
+  "IT26101672": {
+    "name": "Kantharuban M.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD03"
+  },
+  "IT26100727": {
+    "name": "Alagiyawanna A.M.A.D.S.H.D.A",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE03"
+  },
+  "IT26101629": {
+    "name": "Mugunthan A.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD03"
+  },
+  "IT26101766": {
+    "name": "Wickramasinghe W.A.D.S",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE03"
+  },
+  "IT26102105": {
+    "name": "Pramodha P.W.I",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD03"
+  },
+  "IT26101905": {
+    "name": "Bulathsinhalage D.Y.K",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE03"
+  },
+  "IT26102151": {
+    "name": "Abinesh J.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD03"
+  },
+  "IT26100518": {
+    "name": "Dhanapala H.R.M.D.",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE03"
+  },
+  "IT26101332": {
+    "name": "Abayawardhane P.A.R.T.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD04"
+  },
+  "IT26101567": {
+    "name": "Peiris U.D.D",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE04"
+  },
+  "IT26101688": {
+    "name": "Jayakody R.R.J.A.C.G",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD04"
+  },
+  "IT26102006": {
+    "name": "Perera W A G E",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE04"
+  },
+  "IT26101236": {
+    "name": "Nawarathne T.M.R.L",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD04"
+  },
+  "IT26101510": {
+    "name": "Peiris T.T.U",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE04"
+  },
+  "IT26101626": {
+    "name": "Parameswaran J.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD04"
+  },
+  "IT26101808": {
+    "name": "Edirisooriya M.A",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE04"
+  },
+  "IT26102104": {
+    "name": "Malshani E A T",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD04"
+  },
+  "IT26100068": {
+    "name": "Harieshwar P",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE04"
+  },
+  "IT26102103": {
+    "name": "Shenal U.N.R",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD04"
+  },
+  "IT26101485": {
+    "name": "Khalid M.N.F",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE04"
+  },
+  "IT26101331": {
+    "name": "Weerasinghe G.D.P",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD05"
+  },
+  "IT26101977": {
+    "name": "Thanaraj P.",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE05"
+  },
+  "IT26101680": {
+    "name": "Senadheera O.T.S",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD05"
+  },
+  "IT26101433": {
+    "name": "Tennakoon T. M. A. N. C.",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE05"
+  },
+  "IT26101235": {
+    "name": "Samarasinghe P.A.A.S",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD05"
+  },
+  "IT26100483": {
+    "name": "Yugenthira P",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE05"
+  },
+  "IT26101615": {
+    "name": "Ranaweera W.K",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD05"
+  },
+  "IT26102035": {
+    "name": "Maduwanwala W.T.S",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE05"
+  },
+  "IT26101992": {
+    "name": "Fernando K.C.D",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD05"
+  },
+  "IT26101451": {
+    "name": "Herath H.M.U.S.B",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE05"
+  },
+  "IT26102102": {
+    "name": "De Silva P.D.K",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD05"
+  },
+  "IT26101910": {
+    "name": "Gamage C.A",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE05"
+  },
+  "IT26101328": {
+    "name": "Rathnayake R. M. K. H. N.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD06"
+  },
+  "IT26101819": {
+    "name": "Manahara K. A. D. T.",
+    "timetable_group": "Y1.S1.WE.IT.01",
+    "sub_group": "Y1.S1.WE.IT.01.001",
+    "project_group": "WE06"
+  },
+  "IT26101674": {
+    "name": "Agalawaththa M. J. H.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD06"
+  },
+  "IT26101228": {
+    "name": "Mudunkothge M.D.R",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD06"
+  },
+  "IT26101592": {
+    "name": "Karunanayaka W T C K",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD06"
+  },
+  "IT26101985": {
+    "name": "Perera W.N.M",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD06"
+  },
+  "IT26102097": {
+    "name": "Fonseka D.W.S.N",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD06"
+  },
+  "IT26101323": {
+    "name": "Pinsara H.H.D.S",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD07"
+  },
+  "IT26101673": {
+    "name": "Jayanindu K. G. T. D.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD07"
+  },
+  "IT26101210": {
+    "name": "Kumarasinghe K.B.R.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD07"
+  },
+  "IT26101590": {
+    "name": "Wijesinghe M.Y",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD07"
+  },
+  "IT26101983": {
+    "name": "Tennakoon T.M.I.A",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD07"
+  },
+  "IT26102066": {
+    "name": "Semuthu J.G.R",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD07"
+  },
+  "IT26101316": {
+    "name": "Fernando G.S.C",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD08"
+  },
+  "IT26101657": {
+    "name": "Chathuranga M.K.M.L",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD08"
+  },
+  "IT26101129": {
+    "name": "Rifnan M.R.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD08"
+  },
+  "IT26101585": {
+    "name": "Kamsiga B.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD08"
+  },
+  "IT26101965": {
+    "name": "Dewmini S. D.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD08"
+  },
+  "IT26102059": {
+    "name": "Semika K P D",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD08"
+  },
+  "IT26101284": {
+    "name": "Sandaruwan M.A.S",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD09"
+  },
+  "IT26101643": {
+    "name": "Kodithuwakku.K.A.M.S",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD09"
+  },
+  "IT26100956": {
+    "name": "Aberathna K.M.S.D.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD09"
+  },
+  "IT26101579": {
+    "name": "Samarasinghe B.S",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD09"
+  },
+  "IT26101901": {
+    "name": "De Alwis P.D.T.H",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD09"
+  },
+  "IT26102047": {
+    "name": "Silva P. T. T",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD09"
+  },
+  "IT26101262": {
+    "name": "Ranaviraja R.W.H.M.P.T.B",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD10"
+  },
+  "IT26101620": {
+    "name": "Divondixcy R.N",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD10"
+  },
+  "IT26100498": {
+    "name": "Pavanithan S.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD10"
+  },
+  "IT26101507": {
+    "name": "Rishikesan P.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD10"
+  },
+  "IT26101888": {
+    "name": "Nethmini D. L. D. C.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD10"
+  },
+  "IT26102045": {
+    "name": "Udara L.B.A.I",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.001",
+    "project_group": "WD10"
+  },
+  "IT26101260": {
+    "name": "Rashmika H. K. T.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD11"
+  },
+  "IT26101614": {
+    "name": "Atheek M. M. Y.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD11"
+  },
+  "IT26100489": {
+    "name": "Yapa K. G. B.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD11"
+  },
+  "IT26101471": {
+    "name": "Nimsara H M",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD11"
+  },
+  "IT26101880": {
+    "name": "Donagammana M.H.S.D",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD11"
+  },
+  "IT26102042": {
+    "name": "Fernando W. W. S. T.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD11"
+  },
+  "IT26101259": {
+    "name": "Kalhara S. A.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD12"
+  },
+  "IT26101611": {
+    "name": "Nimsara E.A.K",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD12"
+  },
+  "IT26100013": {
+    "name": "De Silva M.I.B",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD12"
+  },
+  "IT26101467": {
+    "name": "Adhikari A.M.U.D",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD12"
+  },
+  "IT26101797": {
+    "name": "Ranasinghe G D D N",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD12"
+  },
+  "IT26102041": {
+    "name": "Sooriyapperuma S.A.S.D",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD12"
+  },
+  "IT26101245": {
+    "name": "Hansaja W. S.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD13"
+  },
+  "IT26101610": {
+    "name": "Keasavan V.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD13"
+  },
+  "IT25101376": {
+    "name": "Beemansa C.D.M",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD13"
+  },
+  "IT26101455": {
+    "name": "Subasinghe N.H.N.B",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD13"
+  },
+  "IT26101744": {
+    "name": "Dissanayake D.M.M.M",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD13"
+  },
+  "IT26102037": {
+    "name": "Weerakoon D. S. A",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD13"
+  },
+  "IT26101244": {
+    "name": "Hettiarachchii S.S",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD14"
+  },
+  "IT26101607": {
+    "name": "Moras G.M.M.K.L",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD14"
+  },
+  "IT26101805": {
+    "name": "Bandara M S",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD14"
+  },
+  "IT26101454": {
+    "name": "Prabashini D. M. P. B.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD14"
+  },
+  "IT26101738": {
+    "name": "Wijesundara W. R. A. E. B.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD14"
+  },
+  "IT26102031": {
+    "name": "Kethnula T.A.C",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD14"
+  },
+  "IT26101242": {
+    "name": "Gunathilaka R. B. A. N.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD15"
+  },
+  "IT26101602": {
+    "name": "Saran T",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD15"
+  },
+  "IT26101675": {
+    "name": "Kumanayake I H",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD15"
+  },
+  "IT26102055": {
+    "name": "Samarakoon S A B M",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD15"
+  },
+  "IT26101448": {
+    "name": "Dewmini U.K.T.T",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD15"
+  },
+  "IT26101737": {
+    "name": "Amarasinghe D.L.D.S",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD15"
+  },
+  "IT26102018": {
+    "name": "Sasmith J.P.S.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD16"
+  },
+  "IT26101238": {
+    "name": "Peiris T.N.R",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD16"
+  },
+  "IT26101600": {
+    "name": "Widusahan P.G.C",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD16"
+  },
+  "IT26102004": {
+    "name": "Peiris L. S. T",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD16"
+  },
+  "IT26101444": {
+    "name": "Angelita J. G. M.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD16"
+  },
+  "IT26101704": {
+    "name": "Losani P. A. T.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD16"
+  },
+  "IT26102008": {
+    "name": "Pathirana H.P.L.A",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD17"
+  },
+  "IT26101204": {
+    "name": "Kiriella L. G.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD17"
+  },
+  "IT26101597": {
+    "name": "Rukshan M.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD17"
+  },
+  "IT26102002": {
+    "name": "Hussain A H Z",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD17"
+  },
+  "IT26101443": {
+    "name": "Karunanithy H.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD17"
+  },
+  "IT26101678": {
+    "name": "Vishwani R.G.U.P",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD17"
+  },
+  "IT26101997": {
+    "name": "Rathnayake D.R",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD18"
+  },
+  "IT26100944": {
+    "name": "Chandrasekara M.S.S.C",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD18"
+  },
+  "IT26101589": {
+    "name": "Lakshan S. C.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD18"
+  },
+  "IT26101987": {
+    "name": "Silva J.S.H",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD18"
+  },
+  "IT26101409": {
+    "name": "Afsa I. R.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD18"
+  },
+  "IT26101651": {
+    "name": "Kandegedara K.K.T.S",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD18"
+  },
+  "IT26101990": {
+    "name": "Adikaram A.M.D.P",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD19"
+  },
+  "IT26100573": {
+    "name": "Maduranga W.A.R",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD19"
+  },
+  "IT26101576": {
+    "name": "Ahamed M. F. I.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD19"
+  },
+  "IT26101972": {
+    "name": "Welikala K.S",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD19"
+  },
+  "IT26101393": {
+    "name": "Safiyah M. M.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD19"
+  },
+  "IT26101642": {
+    "name": "Perera L. O. W.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD19"
+  },
+  "IT26101974": {
+    "name": "Ranasinghe I. P.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD20"
+  },
+  "IT26100212": {
+    "name": "Epitawala E.A.A.N",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD20"
+  },
+  "IT26101571": {
+    "name": "Asjath A.M",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD20"
+  },
+  "IT26101893": {
+    "name": "Peris H. S. S.",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD20"
+  },
+  "IT26101384": {
+    "name": "Thennakoon T.M.R.V.G",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD20"
+  },
+  "IT26101632": {
+    "name": "Seelawikrama M.D.I.N",
+    "timetable_group": "Y1.S1.WD.IT.01",
+    "sub_group": "Y1.S1.WD.IT.01.002",
+    "project_group": "WD20"
+  },
+  "IT26101964": {
+    "name": "Perera B.N.S.S",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD21"
+  },
+  "IT26102150": {
+    "name": "Yathooshan K",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD21"
+  },
+  "IT26101570": {
+    "name": "Midigaspe S.C",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD21"
+  },
+  "IT26101806": {
+    "name": "Botheju C.M",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD21"
+  },
+  "IT26101382": {
+    "name": "Gunasinghe U. L. D. V. D.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD21"
+  },
+  "IT26101628": {
+    "name": "Geekiyanage K. I.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD21"
+  },
+  "IT26101962": {
+    "name": "Fernando G. R. E.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD22"
+  },
+  "IT26102149": {
+    "name": "Kavisan S",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD22"
+  },
+  "IT26101531": {
+    "name": "Gajamukan P.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD22"
+  },
+  "IT26101801": {
+    "name": "Dayathilaka P. A. O. P.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD22"
+  },
+  "IT26101369": {
+    "name": "Madugalle M. D. Y. Y.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD22"
+  },
+  "IT26101533": {
+    "name": "Shehara R. D.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD22"
+  },
+  "IT26101956": {
+    "name": "Weerawardana D.S.S",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD23"
+  },
+  "IT26102144": {
+    "name": "Arulvaaranan S",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD23"
+  },
+  "IT26101528": {
+    "name": "Chandinu D.P.P",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD23"
+  },
+  "IT26101742": {
+    "name": "Samarasinghe S.P.M.C",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD23"
+  },
+  "IT26101353": {
+    "name": "Kulathunga B. D. S.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD23"
+  },
+  "IT26101530": {
+    "name": "Abrew K.S.M",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD23"
+  },
+  "IT26101955": {
+    "name": "Mallikaarachchi M. A. B. C.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD24"
+  },
+  "IT26102141": {
+    "name": "Rathnayaka R. R.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD24"
+  },
+  "IT26101526": {
+    "name": "De Silva H.W.P.S",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD24"
+  },
+  "IT26101735": {
+    "name": "Gurusinghe B.N",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD24"
+  },
+  "IT26101351": {
+    "name": "Pathirana K P D M K",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD24"
+  },
+  "IT26101484": {
+    "name": "Wathsiluni K.A.K.D.D",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD24"
+  },
+  "IT26101953": {
+    "name": "Deemantha S.M.D",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD25"
+  },
+  "IT26102116": {
+    "name": "Shamli M. M. M.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD25"
+  },
+  "IT26101525": {
+    "name": "Nethsara H. H. M. S.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD25"
+  },
+  "IT26101716": {
+    "name": "Kumarasingha K K A K D",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD25"
+  },
+  "IT26101334": {
+    "name": "Jayashantha I.P.K.N",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD25"
+  },
+  "IT26101482": {
+    "name": "Nishshanka N.A.K.T.T",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD25"
+  },
+  "IT26101946": {
+    "name": "Perera W.N.N",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD26"
+  },
+  "IT26102115": {
+    "name": "Cassiere M.A.B",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD26"
+  },
+  "IT26101524": {
+    "name": "Sellahewa P. K.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD26"
+  },
+  "IT26101660": {
+    "name": "Thiranjith D M S",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD26"
+  },
+  "IT26101324": {
+    "name": "Vidanapathirana P.R",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD26"
+  },
+  "IT26101470": {
+    "name": "Ransara D. K.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD26"
+  },
+  "IT26101942": {
+    "name": "Nenula J.K.A.D",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD27"
+  },
+  "IT26102114": {
+    "name": "Karunarathna W. M. T. P.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD27"
+  },
+  "IT26101523": {
+    "name": "Deumin S. U.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD27"
+  },
+  "IT26101658": {
+    "name": "Cooray I. U.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD27"
+  },
+  "IT26101318": {
+    "name": "Kumarasinghe D.R.H",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD27"
+  },
+  "IT26101456": {
+    "name": "Nuwarapaksha N. S. U.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD27"
+  },
+  "IT26101912": {
+    "name": "Thejan L. K. T.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD28"
+  },
+  "IT26102113": {
+    "name": "Bandara M.P.I.U",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD28"
+  },
+  "IT26101520": {
+    "name": "Bandara L R G M K",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD28"
+  },
+  "IT26101639": {
+    "name": "Fernando W.K.B.S.V",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD28"
+  },
+  "IT26101299": {
+    "name": "Dissanayaka D. P. S. R.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD28"
+  },
+  "IT26101453": {
+    "name": "Lenmini R. H.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD28"
+  },
+  "IT26101898": {
+    "name": "Rathnasekara T.K",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD29"
+  },
+  "IT26102112": {
+    "name": "Dilshan Y.I.K",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD29"
+  },
+  "IT26101513": {
+    "name": "Keshanan V.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD29"
+  },
+  "IT26101522": {
+    "name": "Ahangama S.A",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD29"
+  },
+  "IT26101285": {
+    "name": "Kavindya N. M. K.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD29"
+  },
+  "IT26101421": {
+    "name": "Nethmini D.P.C",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD29"
+  },
+  "IT26101892": {
+    "name": "Jayasundara J.M.S.S.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD30"
+  },
+  "IT26102110": {
+    "name": "Wijayawickrama K. A. D.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD30"
+  },
+  "IT26101508": {
+    "name": "Niluxshan S",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD30"
+  },
+  "IT26101512": {
+    "name": "Dewappriya M. K. R.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD30"
+  },
+  "IT26101275": {
+    "name": "Hafsa M.R.F.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD30"
+  },
+  "IT26101370": {
+    "name": "Jayakody J.A.D.D.N",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.001",
+    "project_group": "WD30"
+  },
+  "IT26101889": {
+    "name": "Uthsara K. D. Y.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD31"
+  },
+  "IT26102109": {
+    "name": "Ishara W.A.K.D",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD31"
+  },
+  "IT26101505": {
+    "name": "Kajanan R.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD31"
+  },
+  "IT26101490": {
+    "name": "Mithunkanth S.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD31"
+  },
+  "IT26101272": {
+    "name": "Melki U. H. L.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD31"
+  },
+  "IT26101365": {
+    "name": "Jagoda Y.B",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD31"
+  },
+  "IT26101870": {
+    "name": "Ariyaratne K.D.H.N",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD32"
+  },
+  "IT26102108": {
+    "name": "Dinuththara P. A. C.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD32"
+  },
+  "IT26101496": {
+    "name": "Rashidh J. M.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD32"
+  },
+  "IT26101427": {
+    "name": "Weerasinghe S. R.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD32"
+  },
+  "IT26101265": {
+    "name": "Jayawardhana W. P. M. M.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD32"
+  },
+  "IT26101344": {
+    "name": "Pathmalal M T A",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD32"
+  },
+  "IT26101822": {
+    "name": "Navodya C. M. D.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD33"
+  },
+  "IT26102065": {
+    "name": "Kawsika N P W",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD33"
+  },
+  "IT26101491": {
+    "name": "Asjath A. R. M.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD33"
+  },
+  "IT26101401": {
+    "name": "Perera H.P.N.K",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD33"
+  },
+  "IT26101225": {
+    "name": "Nimthera R. R.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD33"
+  },
+  "IT26101340": {
+    "name": "Thenuja R. S.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD33"
+  },
+  "IT26101809": {
+    "name": "Manchanayaka S M A O D",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD34"
+  },
+  "IT26102046": {
+    "name": "Jayalath J.M.S.S",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD34"
+  },
+  "IT26101480": {
+    "name": "Sadhushan M.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD34"
+  },
+  "IT26101363": {
+    "name": "Gunasekara L.M",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD34"
+  },
+  "IT26101223": {
+    "name": "Theepika U.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD34"
+  },
+  "IT26101330": {
+    "name": "Lakithma H.A.R",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD34"
+  },
+  "IT26101802": {
+    "name": "Prabhashana D.L.D",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD35"
+  },
+  "IT26102039": {
+    "name": "Sakithiyan P",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD35"
+  },
+  "IT26101479": {
+    "name": "Sathurththikan A",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD35"
+  },
+  "IT26101362": {
+    "name": "Dissanayaka D.M.V.C",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD35"
+  },
+  "IT26101214": {
+    "name": "Raksana M.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD35"
+  },
+  "IT26101319": {
+    "name": "Amanda K. D. S.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD35"
+  },
+  "IT26101795": {
+    "name": "Surath K. P.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD36"
+  },
+  "IT26102030": {
+    "name": "Prabashana A.G.L.A.N",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD36"
+  },
+  "IT26101469": {
+    "name": "Gomilan P.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD36"
+  },
+  "IT26101349": {
+    "name": "Diyalagoda P.S.V.V.D",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD36"
+  },
+  "IT26101212": {
+    "name": "Wediwela M. M.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD36"
+  },
+  "IT26101313": {
+    "name": "Santhirakanthan A",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD36"
+  },
+  "IT26101789": {
+    "name": "Kasthurirathna H.M.Y.M",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD37"
+  },
+  "IT26102023": {
+    "name": "Theiveehan M",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD37"
+  },
+  "IT26101465": {
+    "name": "Rathnasiri D. M. K. D.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD37"
+  },
+  "IT26200228": {
+    "name": "Varuniya R.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD37"
+  },
+  "IT26101337": {
+    "name": "Janarthan V.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD37"
+  },
+  "IT26101301": {
+    "name": "Bandara P.G.T.S",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD37"
+  },
+  "IT26101787": {
+    "name": "Dilneth K. S.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD38"
+  },
+  "IT26102017": {
+    "name": "Hansamal H.D.D.Y",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD38"
+  },
+  "IT26101438": {
+    "name": "Madumal H.G.A.S",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD38"
+  },
+  "IT26102107": {
+    "name": "Saputhanthri S.I.M",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD38"
+  },
+  "IT26101268": {
+    "name": "Mallawathanthri S S T S",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD38"
+  },
+  "IT26101295": {
+    "name": "Dahanayaka V A",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD38"
+  },
+  "IT26101773": {
+    "name": "Rathnayaka R.A.E.R",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD39"
+  },
+  "IT26102015": {
+    "name": "Rathnayake R.M.H.M.B.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD39"
+  },
+  "IT26101432": {
+    "name": "Pathiraja P.M.M.T.S",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD39"
+  },
+  "IT26102106": {
+    "name": "Samarappuli S.A.N",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD39"
+  },
+  "IT26101247": {
+    "name": "De Silva W.N.N.M.B",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD39"
+  },
+  "IT26101277": {
+    "name": "Fernando W. W. A. N.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD39"
+  },
+  "IT26101750": {
+    "name": "Shamika A L A I",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD40"
+  },
+  "IT26102012": {
+    "name": "Dahanayaka K.M",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD40"
+  },
+  "IT26101430": {
+    "name": "Judedanis E",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD40"
+  },
+  "IT26102076": {
+    "name": "Abayadewa A.Y.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD40"
+  },
+  "IT26101230": {
+    "name": "Wijegunawardana W.A.D.M.M",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD40"
+  },
+  "IT26101250": {
+    "name": "Alagiyawanna A. M. A. Y. O.",
+    "timetable_group": "Y1.S1.WD.IT.02",
+    "sub_group": "Y1.S1.WD.IT.02.002",
+    "project_group": "WD40"
+  },
+  "IT26101743": {
+    "name": "Weerakoon N.N",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD41"
+  },
+  "IT26101996": {
+    "name": "Sanjayan V",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD41"
+  },
+  "IT26101429": {
+    "name": "Thanush L",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD41"
+  },
+  "IT26102058": {
+    "name": "Nividuni J.I.S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD41"
+  },
+  "IT26100739": {
+    "name": "Rathnayaka W. R. P. S. T.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD41"
+  },
+  "IT26101222": {
+    "name": "Samarakoon A.M.B.E.O.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD41"
+  },
+  "IT26101705": {
+    "name": "Kumarasinghe K.A.L.N",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD42"
+  },
+  "IT26101986": {
+    "name": "Yazhakan P.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD42"
+  },
+  "IT26101428": {
+    "name": "Saahan S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD42"
+  },
+  "IT26102021": {
+    "name": "Sandunika U A G",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD42"
+  },
+  "IT26100262": {
+    "name": "Hewawasam H H V S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD42"
+  },
+  "IT26100693": {
+    "name": "Munasinghe D.P.A.O.V",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD42"
+  },
+  "IT26101696": {
+    "name": "Perera D.H.M.N",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD43"
+  },
+  "IT26101984": {
+    "name": "Asjadh M.A.M",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD43"
+  },
+  "IT26101420": {
+    "name": "Jilaxsan R",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD43"
+  },
+  "IT26101917": {
+    "name": "Amadi K. L. T.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD43"
+  },
+  "IT26102143": {
+    "name": "Ruzhdhy M.F.M",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD43"
+  },
+  "IT26100543": {
+    "name": "Kaveesha S. S.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD43"
+  },
+  "IT26101690": {
+    "name": "Janandith R. A. A.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD44"
+  },
+  "IT26101980": {
+    "name": "Thathsara H L J",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD44"
+  },
+  "IT26101417": {
+    "name": "Varushnan V.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD44"
+  },
+  "IT26101891": {
+    "name": "Joshua A.J",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD44"
+  },
+  "IT26102142": {
+    "name": "Ahamed P.A.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD44"
+  },
+  "IT26100407": {
+    "name": "Premathilaka W. L. P. S.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD44"
+  },
+  "IT26101662": {
+    "name": "Pramod W.R.A.S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD45"
+  },
+  "IT26101968": {
+    "name": "Dilhara K.W.T",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD45"
+  },
+  "IT26101414": {
+    "name": "Amalaventh T",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD45"
+  },
+  "IT26101770": {
+    "name": "Disanayake H.D.M.K.S.S.S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD45"
+  },
+  "IT26102032": {
+    "name": "Nanthagoban. A",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD45"
+  },
+  "IT26450013": {
+    "name": "Monilka W T",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD45"
+  },
+  "IT26101646": {
+    "name": "Thenuwara D.T",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD46"
+  },
+  "IT26101966": {
+    "name": "Abishan J.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD46"
+  },
+  "IT26101412": {
+    "name": "Aashik R",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD46"
+  },
+  "IT26101725": {
+    "name": "Attanayaka T. T",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD46"
+  },
+  "IT26101958": {
+    "name": "Bandara D.M.N",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD46"
+  },
+  "IT26300323": {
+    "name": "Ranaweera K. M",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD46"
+  },
+  "IT26101635": {
+    "name": "Perera B.R.S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD47"
+  },
+  "IT26101954": {
+    "name": "Fernando W. T. S. M.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD47"
+  },
+  "IT26101410": {
+    "name": "Pirathas S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD47"
+  },
+  "IT26101720": {
+    "name": "Gunasinghe S.S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD47"
+  },
+  "IT26101935": {
+    "name": "Piruththikan V.J",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD47"
+  },
+  "IT26200749": {
+    "name": "Miyanadeniya T.M.D.A.M",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD47"
+  },
+  "IT26101631": {
+    "name": "Udeepa M.K.D.G",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD48"
+  },
+  "IT26101951": {
+    "name": "Ramanayaka A. M. R.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD48"
+  },
+  "IT26101406": {
+    "name": "Rajapaksha R.G.M.H",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD48"
+  },
+  "IT26101498": {
+    "name": "Anudeepika T.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD48"
+  },
+  "IT26101929": {
+    "name": "Rangana W.A.D.P",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD48"
+  },
+  "IT26102148": {
+    "name": "Thushani S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD48"
+  },
+  "IT26101625": {
+    "name": "Mihisara N.A.E",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD49"
+  },
+  "IT26101940": {
+    "name": "Bandara W.M.S.D",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD49"
+  },
+  "IT26101400": {
+    "name": "Jayathilaka K.D.T.A",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD49"
+  },
+  "IT26101474": {
+    "name": "Nimalsiri W.R.P",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD49"
+  },
+  "IT26101823": {
+    "name": "Geeganage B. V. L.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD49"
+  },
+  "IT26102048": {
+    "name": "Sachithra G.P.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD49"
+  },
+  "IT26101622": {
+    "name": "Gunasekara R.D.B.B",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD50"
+  },
+  "IT26101937": {
+    "name": "Lakshan M.W",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD50"
+  },
+  "IT26101392": {
+    "name": "Mihiranga M.S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD50"
+  },
+  "IT26101434": {
+    "name": "Abeysinha G. S. K.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD50"
+  },
+  "IT26101813": {
+    "name": "Karunarathna D.M.P.E",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD50"
+  },
+  "IT26102034": {
+    "name": "Abegunawardhana L.M.S.H",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.001",
+    "project_group": "WD50"
+  },
+  "IT26101619": {
+    "name": "Methnaka R. A. T.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD51"
+  },
+  "IT26101936": {
+    "name": "Dabare P.T.M",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD51"
+  },
+  "IT26101389": {
+    "name": "Wickramasinghe R.M.A.A.W",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD51"
+  },
+  "IT26101398": {
+    "name": "Nadeeja M.K.I",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD51"
+  },
+  "IT26101807": {
+    "name": "Thushanth S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD51"
+  },
+  "IT26102019": {
+    "name": "Lakduli U Y",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD51"
+  },
+  "IT26101618": {
+    "name": "Dasanayaka H.M.S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD52"
+  },
+  "IT26101932": {
+    "name": "Kumarasiri A.S.N.N",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD52"
+  },
+  "IT26101379": {
+    "name": "Senanayaka H.R.J.K",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD52"
+  },
+  "IT26101373": {
+    "name": "Perera P.K.D.T.M",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD52"
+  },
+  "IT26101803": {
+    "name": "Ahmed N D A",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD52"
+  },
+  "IT26102003": {
+    "name": "Vinudi Y.M.N",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD52"
+  },
+  "IT26101606": {
+    "name": "Kumarathunge W. P. C. K.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD53"
+  },
+  "IT26101925": {
+    "name": "Mithushanth S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD53"
+  },
+  "IT26101377": {
+    "name": "Medagoda M. A. C. G.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD53"
+  },
+  "IT26101303": {
+    "name": "Samidon N.B.S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD53"
+  },
+  "IT26101768": {
+    "name": "Nimthaka S. C. D.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD53"
+  },
+  "IT26101978": {
+    "name": "Amalja I. D.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD53"
+  },
+  "IT26101604": {
+    "name": "Ansala J. T.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD54"
+  },
+  "IT26101922": {
+    "name": "Dilhara W D",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD54"
+  },
+  "IT26101376": {
+    "name": "Withanage A.W.T.D.S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD54"
+  },
+  "IT26101297": {
+    "name": "Athukorala I. A. I. K.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD54"
+  },
+  "IT26101767": {
+    "name": "Narththanan V.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD54"
+  },
+  "IT26101950": {
+    "name": "Perera K.W.J.P.P.T",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD54"
+  },
+  "IT26101599": {
+    "name": "Harinda S.M.K",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD55"
+  },
+  "IT26101919": {
+    "name": "Thennakoon T.M.R.M",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD55"
+  },
+  "IT26101372": {
+    "name": "Jayawansa M.R.M.C.B",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD55"
+  },
+  "IT26101293": {
+    "name": "Nawanjana P.B.N",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD55"
+  },
+  "IT26101655": {
+    "name": "Gajanan.J",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD55"
+  },
+  "IT26101941": {
+    "name": "Perera D. N. N.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD55"
+  },
+  "IT26101595": {
+    "name": "Ariyasinghe K. S. E.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD56"
+  },
+  "IT26101913": {
+    "name": "Praveen K",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD56"
+  },
+  "IT26101364": {
+    "name": "Prusothman U.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD56"
+  },
+  "IT26101248": {
+    "name": "Prabhasha W. M. N.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD56"
+  },
+  "IT26101653": {
+    "name": "Bandara W. K. T. D.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD56"
+  },
+  "IT26101904": {
+    "name": "Dissanayake B. M. P. N.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD56"
+  },
+  "IT26101582": {
+    "name": "Rajapaksha K.W.D",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD57"
+  },
+  "IT26101909": {
+    "name": "Sudasinghe O. E.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD57"
+  },
+  "IT26101361": {
+    "name": "Binuk U.S.Y",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD57"
+  },
+  "IT26101203": {
+    "name": "Joseph D. D.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD57"
+  },
+  "IT26101613": {
+    "name": "Galappaththi G.R.M.G",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD57"
+  },
+  "IT26101900": {
+    "name": "Sowmiya J.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD57"
+  },
+  "IT26101577": {
+    "name": "Bandara G.R.S.D",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD58"
+  },
+  "IT26101908": {
+    "name": "Razaan M.N.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD58"
+  },
+  "IT26101355": {
+    "name": "Kodithuwakku K.A.D.M",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD58"
+  },
+  "IT26102127": {
+    "name": "Rathishnayavani C",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD58"
+  },
+  "IT26101591": {
+    "name": "Umasuthan V.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD58"
+  },
+  "IT26101825": {
+    "name": "Senarathna I. S.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD58"
+  },
+  "IT26101494": {
+    "name": "Nishshanka N. A. S. D.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD59"
+  },
+  "IT26101883": {
+    "name": "Rajapaksha R.M.A.T.U",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD59"
+  },
+  "IT26101322": {
+    "name": "Kularathne D.M.D.D.B",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD59"
+  },
+  "IT26102111": {
+    "name": "Pathirana M.P.M.K",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD59"
+  },
+  "IT26101573": {
+    "name": "Perera T.A.S.A",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD59"
+  },
+  "IT26101812": {
+    "name": "Herath H.M.T.S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD59"
+  },
+  "IT26101488": {
+    "name": "Arachchige W.K.A.V.S",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD60"
+  },
+  "IT26101882": {
+    "name": "Kavinda D.H.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD60"
+  },
+  "IT26101317": {
+    "name": "Inham M.P.M",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD60"
+  },
+  "IT26102075": {
+    "name": "Samarakoon I.G.U.N",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD60"
+  },
+  "IT26101568": {
+    "name": "Samad A.N",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD60"
+  },
+  "IT26101796": {
+    "name": "Senewmi N. D. E. V.",
+    "timetable_group": "Y1.S1.WD.IT.03",
+    "sub_group": "Y1.S1.WD.IT.03.002",
+    "project_group": "WD60"
+  },
+  "IT26101483": {
+    "name": "Weerarathna W. V. G. D.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD61"
+  },
+  "IT26101875": {
+    "name": "Dharmasiri E.U.S.T",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD61"
+  },
+  "IT26101310": {
+    "name": "Wijesekara A.U.M",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD61"
+  },
+  "IT26101926": {
+    "name": "Samarakoon S M G K",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD61"
+  },
+  "IT26101517": {
+    "name": "Peries J. N.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD61"
+  },
+  "IT26101793": {
+    "name": "Walavege W. G. V.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD61"
+  },
+  "IT26101475": {
+    "name": "Abeygunawardana D. G. M. D.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD62"
+  },
+  "IT26101817": {
+    "name": "Akash D.T",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD62"
+  },
+  "IT26101309": {
+    "name": "Fasmeer M. F. M.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD62"
+  },
+  "IT26101719": {
+    "name": "Jayalath M.D.H.K",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD62"
+  },
+  "IT26101492": {
+    "name": "Dissanayake D.M.Y.K",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD62"
+  },
+  "IT26101785": {
+    "name": "Kodagoda A.A.Y.S",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD62"
+  },
+  "IT26101458": {
+    "name": "Wijerathne W. G. P. N.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD63"
+  },
+  "IT26101776": {
+    "name": "Pathirana L. S. R.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD63"
+  },
+  "IT26101307": {
+    "name": "Rihan S. A. M.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD63"
+  },
+  "IT26101685": {
+    "name": "Egodahewa T. I.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD63"
+  },
+  "IT26101477": {
+    "name": "Afras M. T. M.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD63"
+  },
+  "IT26101765": {
+    "name": "Hettige F.H.S.T",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD63"
+  },
+  "IT26101450": {
+    "name": "Dulwan N.H",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD64"
+  },
+  "IT26101764": {
+    "name": "Abiram S",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD64"
+  },
+  "IT26101306": {
+    "name": "Jeyharan J.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD64"
+  },
+  "IT26101617": {
+    "name": "Devadas S. S. G.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD64"
+  },
+  "IT26101327": {
+    "name": "Shazni M.J.M",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD64"
+  },
+  "IT26101753": {
+    "name": "Karunarathna U.R.P.N",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD64"
+  },
+  "IT26101442": {
+    "name": "Mindaka G.P",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD65"
+  },
+  "IT26101760": {
+    "name": "Santhosh K.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD65"
+  },
+  "IT26101305": {
+    "name": "Majith M. M. M.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD65"
+  },
+  "IT26101532": {
+    "name": "Hansika W. A. D. D.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD65"
+  },
+  "IT26101281": {
+    "name": "Priyadarshana M. G. S.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD65"
+  },
+  "IT26101745": {
+    "name": "Lakshadi D. R.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD65"
+  },
+  "IT26101423": {
+    "name": "Danush M.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD66"
+  },
+  "IT26101759": {
+    "name": "Thivanujan M.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD66"
+  },
+  "IT26101304": {
+    "name": "Thishall S",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD66"
+  },
+  "IT26101495": {
+    "name": "Limansa N.U.S",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD66"
+  },
+  "IT26101263": {
+    "name": "Jayakody J.M.K.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD66"
+  },
+  "IT26101731": {
+    "name": "Akarshana S.A.S",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD66"
+  },
+  "IT26101418": {
+    "name": "Poorna D. A. K. D. D.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD67"
+  },
+  "IT26101758": {
+    "name": "Sudhan N. H.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD67"
+  },
+  "IT26101300": {
+    "name": "Bandara P.T.M",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD67"
+  },
+  "IT26101464": {
+    "name": "Siyad H.S",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD67"
+  },
+  "IT26101258": {
+    "name": "Madusankha K.M.G",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD67"
+  },
+  "IT26101730": {
+    "name": "Wimalasiri H.M.O.N",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD67"
+  },
+  "IT26101407": {
+    "name": "Bandara G.L.R",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD68"
+  },
+  "IT26101755": {
+    "name": "Bandara T. M. S. S.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD68"
+  },
+  "IT26101298": {
+    "name": "Ilham N.M",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD68"
+  },
+  "IT26101375": {
+    "name": "Dissanayaka D.M.N.T.M",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD68"
+  },
+  "IT26100189": {
+    "name": "Nemitha T.L.N",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD68"
+  },
+  "IT26101729": {
+    "name": "Galgomuwa G. W. P. L.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD68"
+  },
+  "IT26101397": {
+    "name": "Perera V.S.O",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD69"
+  },
+  "IT26101752": {
+    "name": "Kaviluxan K.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD69"
+  },
+  "IT26101290": {
+    "name": "Ashrif N. M.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD69"
+  },
+  "IT26101342": {
+    "name": "Prabhashi K. A. P.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD69"
+  },
+  "IT26101694": {
+    "name": "Abesinghe R. D. H. S.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD70"
+  },
+  "IT26101708": {
+    "name": "Waththuhewa N.H",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD69"
+  },
+  "IT26101396": {
+    "name": "Nimsath W T S",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD70"
+  },
+  "IT26101749": {
+    "name": "Madhushitha K. I.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD70"
+  },
+  "IT26101289": {
+    "name": "Sharujan G.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD70"
+  },
+  "IT26101995": {
+    "name": "Gunarathne R.M.S.P.N",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD70"
+  },
+  "IT26101288": {
+    "name": "Ahamed M. R. I.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD70"
+  },
+  "IT26100122": {
+    "name": "Delaxshan. H",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.001",
+    "project_group": "WD69"
+  },
+  "IT26101387": {
+    "name": "Herath H. M. H. N. B.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.002",
+    "project_group": "WD71"
+  },
+  "IT26101747": {
+    "name": "Pasanjith P.M.D",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.002",
+    "project_group": "WD71"
+  },
+  "IT26101723": {
+    "name": "Pavishan T",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.002",
+    "project_group": "WD71"
+  },
+  "IT26101276": {
+    "name": "Liyanaeacchchilage M.D",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.002",
+    "project_group": "WD71"
+  },
+  "IT26101385": {
+    "name": "Dilhara P. G. K.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.002",
+    "project_group": "WD71"
+  },
+  "IT26101722": {
+    "name": "Dhasaraghan R.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.002",
+    "project_group": "WD71"
+  },
+  "IT26101267": {
+    "name": "Yasintha A.A.R.D",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.002",
+    "project_group": "WD72"
+  },
+  "IT26101367": {
+    "name": "Perera K .Y .M. C.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.002",
+    "project_group": "WD72"
+  },
+  "IT26101366": {
+    "name": "Wedagedara C. P.",
+    "timetable_group": "Y1.S1.WD.IT.04",
+    "sub_group": "Y1.S1.WD.IT.04.002",
+    "project_group": "WD72"
+  }
+}

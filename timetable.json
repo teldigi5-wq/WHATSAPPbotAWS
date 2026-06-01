@@ -1,0 +1,2179 @@
+{
+  "Y1.S1.WD.IT.01": {
+    "Monday": {
+      "08:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0101",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Sahan Dhananjaya, Ms. Minoli Rashmitha",
+          "room": "G1303"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0102",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Chathurya Kumarapperuma, Ms. Piumi Navoda",
+          "room": "G1304"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0101",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Sahan Dhananjaya, Ms. Minoli Rashmitha",
+          "room": "G1303"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0102",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Chathurya Kumarapperuma, Ms. Piumi Navoda",
+          "room": "G1304"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0101",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Mayumi Maleesha , Ms. Nipuni Jayarathna",
+          "room": "G1303"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0102",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Sahan Dhananjaya, Ms. Minoli Rashmitha",
+          "room": "G1304"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0101",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Mayumi Maleesha , Ms. Nipuni Jayarathna",
+          "room": "G1303"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0102",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Sahan Dhananjaya, Ms. Minoli Rashmitha",
+          "room": "G1304"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0101",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Kaushika Kavindi Kahatapitiya, Ms. Harini Gunawardana",
+          "room": "G1302"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0102",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Mr. Muditha Kumara, Ms. Umayangana Wijayasiri",
+          "room": "G1301"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0101",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Kaushika Kavindi Kahatapitiya, Ms. Harini Gunawardana",
+          "room": "G1302"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0102",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Mr. Muditha Kumara, Ms. Umayangana Wijayasiri",
+          "room": "G1301"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0102",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Ms. Maheshi Jayasinghe, Ms. Nimesha Shalika",
+          "room": "G1301"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0102",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Ms. Maheshi Jayasinghe, Ms. Nimesha Shalika",
+          "room": "G1301"
+        }
+      ]
+    },
+    "Tuesday": {
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Mr. Uditha Dharmakeerthi"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Mr. Uditha Dharmakeerthi"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Mr. Uditha Dharmakeerthi"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Nelumika Perera"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Nelumika Perera"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Nelumika Perera"
+        }
+      ]
+    },
+    "Wednesday": {
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group B Lecture",
+          "teacher": "Ms. Nilakma Welgama",
+          "room": "F1307"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1140 - FC Workshop",
+          "teacher": "Ms. Thisara Shyamalee, Ms. Akshi Himahansi De Silva",
+          "room": "F1306"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1140 - FC Workshop",
+          "teacher": "Ms. Thisara Shyamalee, Ms. Akshi Himahansi De Silva",
+          "room": "F1306"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group C Lecture",
+          "teacher": "Ms. Dinithi Lorensuhewa",
+          "room": "F1306"
+        }
+      ]
+    },
+    "Thursday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Lecture",
+          "teacher": "Ms. Chathurya Kumarapperuma",
+          "room": "A503"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Lecture",
+          "teacher": "Ms. Chathurya Kumarapperuma",
+          "room": "A503"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Tutorial",
+          "teacher": "Ms. Chathurya Kumarapperuma, Mr. Dinusha Ukwaththage",
+          "room": "A503"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group D Lecture",
+          "teacher": "Ms. Nilakma Welgama",
+          "room": "A506"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0101",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Mr. Sandun Meesara, Ms. Ruwani Dayananda",
+          "room": "G1304"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0101",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Mr. Sandun Meesara, Ms. Ruwani Dayananda",
+          "room": "G1304"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group A Lecture",
+          "teacher": "Ms. Lakshi Lochana Nanayakkara",
+          "room": "A503"
+        }
+      ]
+    },
+    "Friday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02, Y1.S1.WD.IT.03, Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1140 - FC Lecture Online",
+          "room": "Prof. Sanvitha Kasturiarachchi"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02, Y1.S1.WD.IT.03, Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1140 - FC Lecture Online",
+          "room": "Prof. Sanvitha Kasturiarachchi"
+        }
+      ]
+    }
+  },
+  "Y1.S1.WD.IT.02": {
+    "Monday": {
+      "09:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0202",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Mr. Muditha Kumara, Ms. Kalani Kasthuriarachchi",
+          "room": "G1302"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0201",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Devmini Poornima, Ms. Wathsala Rathnayake",
+          "room": "G1301"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0202",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Mr. Muditha Kumara, Ms. Kalani Kasthuriarachchi",
+          "room": "G1302"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0201",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Devmini Poornima, Ms. Wathsala Rathnayake",
+          "room": "G1301"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Lecture",
+          "teacher": "Dr. Junius Anjana Amaranath",
+          "room": "A503"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Lecture",
+          "teacher": "Dr. Junius Anjana Amaranath",
+          "room": "A503"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Tutorial",
+          "teacher": "Dr. Junius Anjana Amaranath, Ms. Piumi Navoda",
+          "room": "A503"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group B Lecture",
+          "teacher": "Ms. Nilakma Welgama",
+          "room": "F302"
+        }
+      ]
+    },
+    "Tuesday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group A Lecture",
+          "teacher": "Ms. Lakshi Lochana Nanayakkara",
+          "room": "B501"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Mr. Uditha Dharmakeerthi"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Mr. Uditha Dharmakeerthi"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Mr. Uditha Dharmakeerthi"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Nelumika Perera"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Nelumika Perera"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Nelumika Perera"
+        }
+      ]
+    },
+    "Wednesday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1140 - FC Workshop",
+          "teacher": "Ms. Thisara Shyamalee, Ms. Akshi Himahansi De Silva",
+          "room": "F1307"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1140 - FC Workshop",
+          "teacher": "Ms. Thisara Shyamalee, Ms. Akshi Himahansi De Silva",
+          "room": "F1307"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group C Lecture",
+          "teacher": "Ms. Dinithi Lorensuhewa",
+          "room": "F1307"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0201",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Sahan Dhananjaya, Ms. Minoli Rashmitha",
+          "room": "G1301"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0201",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Sahan Dhananjaya, Ms. Minoli Rashmitha",
+          "room": "G1301"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0201",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Mr. Amila Alexander, Ms. Nadeema Hansani",
+          "room": "G1301"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0202",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Mr. Abisheka Withanage, Mr. Dinusha Ukwaththage",
+          "room": "G1303"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0201",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Mr. Amila Alexander, Ms. Nadeema Hansani",
+          "room": "G1301"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0202",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Mr. Abisheka Withanage, Mr. Dinusha Ukwaththage",
+          "room": "G1303"
+        }
+      ]
+    },
+    "Thursday": {
+      "08:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0202",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Umesha Silva, Ms. Santhushi Hemachandra",
+          "room": "G1302"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0202",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Umesha Silva, Ms. Santhushi Hemachandra",
+          "room": "G1302"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0201",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Chathurika Dombepola, Ms. Piumi Navoda",
+          "room": "G1302"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0201",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Chathurika Dombepola, Ms. Piumi Navoda",
+          "room": "G1302"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group D Lecture",
+          "teacher": "Ms. Dinithi Lorensuhewa",
+          "room": "A503"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0202",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Sahan Dhananjaya, Ms. Minoli Rashmitha",
+          "room": "G1304"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0202",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Sahan Dhananjaya, Ms. Minoli Rashmitha",
+          "room": "G1304"
+        }
+      ]
+    },
+    "Friday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02, Y1.S1.WD.IT.03, Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1140 - FC Lecture Online",
+          "room": "Prof. Sanvitha Kasturiarachchi"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02, Y1.S1.WD.IT.03, Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1140 - FC Lecture Online",
+          "room": "Prof. Sanvitha Kasturiarachchi"
+        }
+      ]
+    }
+  },
+  "Y1.S1.WD.IT.03": {
+    "Monday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group C Lecture",
+          "teacher": "Ms. Dinithi Lorensuhewa",
+          "room": "F1308"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Lecture",
+          "teacher": "Ms. Kaushika Kavindi Kahatapitiya",
+          "room": "F1308"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Lecture",
+          "teacher": "Ms. Kaushika Kavindi Kahatapitiya",
+          "room": "F1308"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Tutorial",
+          "teacher": "Ms. Kaushika Kavindi Kahatapitiya, Ms. Harini Gunawardana",
+          "room": "F1308"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group B Lecture",
+          "teacher": "Ms. Nilakma Welgama",
+          "room": "F302"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0301",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Rasani Wijerathna, Ms. Wathsala Rathnayake",
+          "room": "G1302"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0302",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Mayumi Maleesha , Ms. Ruwani Dayananda",
+          "room": "G1303"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0301",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Rasani Wijerathna, Ms. Wathsala Rathnayake",
+          "room": "G1302"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0302",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Mayumi Maleesha , Ms. Ruwani Dayananda",
+          "room": "G1303"
+        }
+      ]
+    },
+    "Tuesday": {
+      "08:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0302",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Charitha Jayasinghe, Instructor 03",
+          "room": "G1302"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0302",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Charitha Jayasinghe, Instructor 03",
+          "room": "G1302"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0301",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Charitha Jayasinghe, Instructor 04",
+          "room": "G1302"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0301",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Charitha Jayasinghe, Instructor 04",
+          "room": "G1302"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0301",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Mr. Amila Alexander, Ms. Piumi Navoda",
+          "room": "G1302"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0302",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Umesha Silva, Ms. Harini Gunawardana",
+          "room": "G1304"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0301",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Mr. Amila Alexander, Ms. Piumi Navoda",
+          "room": "G1302"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0302",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Umesha Silva, Ms. Harini Gunawardana",
+          "room": "G1304"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0301",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Ms. Kalani Kasthuriarachchi, Ms. Devmini Poornima",
+          "room": "G1302"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0302",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Mr. Muditha Kumara, Ms. Nimesha Shalika",
+          "room": "G1304"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0301",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Ms. Kalani Kasthuriarachchi, Ms. Devmini Poornima",
+          "room": "G1302"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0302",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Mr. Muditha Kumara, Ms. Nimesha Shalika",
+          "room": "G1304"
+        }
+      ]
+    },
+    "Wednesday": {
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.03, Y1.S1.WD.IT.04",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Ms. Hansika Mahaadikara"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.03, Y1.S1.WD.IT.04",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Ms. Hansika Mahaadikara"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.03, Y1.S1.WD.IT.04",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Ms. Hansika Mahaadikara"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1130 - MC Lecture, Tutorial",
+          "teacher": "Ms. Pubudika Wijesundara",
+          "room": "F1307"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1130 - MC Lecture, Tutorial",
+          "teacher": "Ms. Pubudika Wijesundara",
+          "room": "F1307"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1130 - MC Lecture, Tutorial",
+          "teacher": "Ms. Pubudika Wijesundara",
+          "room": "F1307"
+        }
+      ]
+    },
+    "Thursday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1140 - FC Workshop",
+          "teacher": "Ms. Thisara Shyamalee, Mr. Amila Alexander",
+          "room": "F1306"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1140 - FC Workshop",
+          "teacher": "Ms. Thisara Shyamalee, Mr. Amila Alexander",
+          "room": "F1306"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group A Lecture",
+          "teacher": "Ms. Lakshi Lochana Nanayakkara",
+          "room": "F1307"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group D Lecture",
+          "teacher": "Ms. Lakshi Lochana Nanayakkara",
+          "room": "F1307"
+        }
+      ]
+    },
+    "Friday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02, Y1.S1.WD.IT.03, Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1140 - FC Lecture Online",
+          "room": "Prof. Sanvitha Kasturiarachchi"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02, Y1.S1.WD.IT.03, Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1140 - FC Lecture Online",
+          "room": "Prof. Sanvitha Kasturiarachchi"
+        }
+      ]
+    }
+  },
+  "Y1.S1.WD.IT.04": {
+    "Monday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Lecture",
+          "teacher": "Mr. Amila Alexander",
+          "room": "F1307"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Lecture",
+          "teacher": "Mr. Amila Alexander",
+          "room": "F1307"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Tutorial",
+          "teacher": "Mr. Amila Alexander, Ms. Harini Gunawardana",
+          "room": "F1307"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group C Lecture",
+          "teacher": "Ms. Dinithi Lorensuhewa",
+          "room": "F1307"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0402",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Charitha Jayasinghe, Instructor 03",
+          "room": "G1304"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0402",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Charitha Jayasinghe, Instructor 03",
+          "room": "G1304"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0402",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Mr. Abisheka Withanage, Mr. Dinusha Ukwaththage",
+          "room": "G1304"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0402",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Mr. Abisheka Withanage, Mr. Dinusha Ukwaththage",
+          "room": "G1304"
+        }
+      ]
+    },
+    "Tuesday": {
+      "08:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0401",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Nadeema Hansani, Ms. Devmini Poornima",
+          "room": "G1301"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0401",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Nadeema Hansani, Ms. Devmini Poornima",
+          "room": "G1301"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0401",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Mr. Amila Alexander, Ms. Wathsala Rathnayake",
+          "room": "G1301"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0402",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Chathurya Kumarapperuma, Mr. Dinusha Ukwaththage",
+          "room": "G1303"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0401",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Mr. Amila Alexander, Ms. Wathsala Rathnayake",
+          "room": "G1301"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0402",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Chathurya Kumarapperuma, Mr. Dinusha Ukwaththage",
+          "room": "G1303"
+        }
+      ]
+    },
+    "Wednesday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group A Lecture",
+          "teacher": "Ms. Dinithi Lorensuhewa",
+          "room": "B501"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.03, Y1.S1.WD.IT.04",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Ms. Hansika Mahaadikara"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.03, Y1.S1.WD.IT.04",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Ms. Hansika Mahaadikara"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.03, Y1.S1.WD.IT.04",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Ms. Hansika Mahaadikara"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Shashini Kumarasinghe"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Shashini Kumarasinghe"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Shashini Kumarasinghe"
+        }
+      ]
+    },
+    "Thursday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group B Lecture",
+          "teacher": "Ms. Dinithi Lorensuhewa",
+          "room": "F1307"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group D Lecture",
+          "teacher": "Ms. Lakshi Lochana Nanayakkara",
+          "room": "F1307"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1140 - FC Workshop",
+          "teacher": "Ms. Thisara Shyamalee, Mr. Abisheka Withanage",
+          "room": "F1307"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1140 - FC Workshop",
+          "teacher": "Ms. Thisara Shyamalee, Mr. Abisheka Withanage",
+          "room": "F1307"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0401",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Instructor 02, Instructor 05",
+          "room": "G1302"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0402",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Nimesha Shalika, Ms. Nadeema Hansani",
+          "room": "G1303"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0401",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Instructor 02, Instructor 05",
+          "room": "G1302"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0402",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Nimesha Shalika, Ms. Nadeema Hansani",
+          "room": "G1303"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0401",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Chathurika Dombepola, Ms. Mayumi Maleesha",
+          "room": "G1302"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0401",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Chathurika Dombepola, Ms. Mayumi Maleesha",
+          "room": "G1302"
+        }
+      ]
+    },
+    "Friday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02, Y1.S1.WD.IT.03, Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1140 - FC Lecture Online",
+          "room": "Prof. Sanvitha Kasturiarachchi"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02, Y1.S1.WD.IT.03, Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1140 - FC Lecture Online",
+          "room": "Prof. Sanvitha Kasturiarachchi"
+        }
+      ]
+    }
+  },
+  "Y1.S1.WD.IT.05": {
+    "Monday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.05, Y1.S1.WD.IT.06",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Mr. Indunil Vishvajith Daluwatte"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.05, Y1.S1.WD.IT.06",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Mr. Indunil Vishvajith Daluwatte"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.05, Y1.S1.WD.IT.06",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Mr. Indunil Vishvajith Daluwatte"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1140 - FC Workshop",
+          "teacher": "Ms. Thisara Shyamalee, Mr. Abisheka Withanage",
+          "room": "F1306"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1140 - FC Workshop",
+          "teacher": "Ms. Thisara Shyamalee, Mr. Abisheka Withanage",
+          "room": "F1306"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group C Lecture",
+          "teacher": "Ms. Nilakma Welgama",
+          "room": "F1306"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group B Lecture",
+          "teacher": "Ms. Dinithi Lorensuhewa",
+          "room": "F1306"
+        }
+      ]
+    },
+    "Tuesday": {
+      "08:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0501",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Rasani Wijerathna, Instructor 05",
+          "room": "G1303"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0502",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Umesha Silva, Ms. Mayumi Maleesha",
+          "room": "G1304"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0501",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Rasani Wijerathna, Instructor 05",
+          "room": "G1303"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0502",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Umesha Silva, Ms. Mayumi Maleesha",
+          "room": "G1304"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group A Lecture",
+          "teacher": "Ms. Dinithi Lorensuhewa",
+          "room": "F1307"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Lecture",
+          "teacher": "Ms. Kaushika Kavindi Kahatapitiya",
+          "room": "F1306"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Lecture",
+          "teacher": "Ms. Kaushika Kavindi Kahatapitiya",
+          "room": "F1306"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Tutorial",
+          "teacher": "Ms. Kaushika Kavindi Kahatapitiya, Ms. Santhushi Hemachandra",
+          "room": "F1306"
+        }
+      ]
+    },
+    "Wednesday": {
+      "08:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0501",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Kaushika Kavindi Kahatapitiya, Ms. Harini Gunawardana",
+          "room": "G1301"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0501",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Kaushika Kavindi Kahatapitiya, Ms. Harini Gunawardana",
+          "room": "G1301"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0501",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Mr. Sandun Meesara, Ms. Ruwani Dayananda",
+          "room": "G1301"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0501",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Mr. Sandun Meesara, Ms. Ruwani Dayananda",
+          "room": "G1301"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Shashini Kumarasinghe"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Shashini Kumarasinghe"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Shashini Kumarasinghe"
+        }
+      ]
+    },
+    "Thursday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group D Lecture",
+          "teacher": "Ms. Nilakma Welgama",
+          "room": "F1308"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0501",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Malshan Gunasekara, Instructor 02",
+          "room": "G1303"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0502",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Ms. Rasani Wijerathna, Mr. Muditha Kumara",
+          "room": "G1301"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0501",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Malshan Gunasekara, Instructor 02",
+          "room": "G1303"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0502",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Ms. Rasani Wijerathna, Mr. Muditha Kumara",
+          "room": "G1301"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0502",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Malshan Gunasekara, Instructor 01",
+          "room": "G1301"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0502",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Malshan Gunasekara, Instructor 01",
+          "room": "G1301"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0502",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Umayangana Wijayasiri, Ms. Ruwani Dayananda",
+          "room": "G1301"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0502",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Umayangana Wijayasiri, Ms. Ruwani Dayananda",
+          "room": "G1301"
+        }
+      ]
+    },
+    "Friday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02, Y1.S1.WD.IT.03, Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1140 - FC Lecture Online",
+          "room": "Prof. Sanvitha Kasturiarachchi"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01, Y1.S1.WD.IT.02, Y1.S1.WD.IT.03, Y1.S1.WD.IT.04, Y1.S1.WD.IT.05",
+          "teacher": "IT1140 - FC Lecture Online",
+          "room": "Prof. Sanvitha Kasturiarachchi"
+        }
+      ]
+    }
+  },
+  "Y1.S1.WD.IT.06": {
+    "Monday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.05, Y1.S1.WD.IT.06",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Mr. Indunil Vishvajith Daluwatte"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.05, Y1.S1.WD.IT.06",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Mr. Indunil Vishvajith Daluwatte"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.05, Y1.S1.WD.IT.06",
+          "teacher": "IE1030 - DCN Lecture, Tutorial",
+          "room": "Mr. Indunil Vishvajith Daluwatte"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group C Lecture",
+          "teacher": "Ms. Dinithi Lorensuhewa",
+          "room": "F1308"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group B Lecture",
+          "teacher": "Ms. Nilakma Welgama",
+          "room": "F1308"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group A Lecture",
+          "teacher": "Ms. Lakshi Lochana Nanayakkara",
+          "room": "F1308"
+        }
+      ]
+    },
+    "Tuesday": {
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Lecture",
+          "teacher": "Ms. Aparna Jayawardena",
+          "room": "F1308"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Lecture",
+          "teacher": "Ms. Aparna Jayawardena",
+          "room": "F1308"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Tutorial",
+          "teacher": "Ms. Aparna Jayawardena, Ms. Piumi Navoda",
+          "room": "F1308"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1140 - FC Workshop",
+          "teacher": "Mr. Sandun Meesara, Mr. Abisheka Withanage",
+          "room": "F1308"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1140 - FC Workshop",
+          "teacher": "Mr. Sandun Meesara, Mr. Abisheka Withanage",
+          "room": "F1308"
+        }
+      ]
+    },
+    "Wednesday": {
+      "08:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0602",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Nipuni Jayarathna, Ms. Nimesha Shalika",
+          "room": "G1303"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0602",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Nipuni Jayarathna, Ms. Nimesha Shalika",
+          "room": "G1303"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0601",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Mr. Amila Alexander, Mr. Dinusha Ukwaththage",
+          "room": "G1304"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0602",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Umesha Silva, Ms. Santhushi Hemachandra",
+          "room": "G1302"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0601",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Mr. Amila Alexander, Mr. Dinusha Ukwaththage",
+          "room": "G1304"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0602",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Umesha Silva, Ms. Santhushi Hemachandra",
+          "room": "G1302"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0601",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Ms. Maheshi Jayasinghe, Ms. Kalani Kasthuriarachchi",
+          "room": "G1304"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0602",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Ms. Mayumi Maleesha , Mr. Malshan Gunasekara",
+          "room": "G1302"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0601",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Ms. Maheshi Jayasinghe, Ms. Kalani Kasthuriarachchi",
+          "room": "G1304"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0602",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Ms. Mayumi Maleesha , Mr. Malshan Gunasekara",
+          "room": "G1302"
+        }
+      ]
+    },
+    "Thursday": {
+      "08:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0601",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Malshan Gunasekara, Instructor 01",
+          "room": "G1304"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0602",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Ms. Rasani Wijerathna, Ms. Nadeema Hansani",
+          "room": "G1301"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0601",
+          "subject": "IE1030 - DCN Practical",
+          "teacher": "Mr. Malshan Gunasekara, Instructor 01",
+          "room": "G1304"
+        },
+        {
+          "subgroup": "Y1.S1.WD.IT.0602",
+          "subject": "IT1140 - FC Practical",
+          "teacher": "Ms. Rasani Wijerathna, Ms. Nadeema Hansani",
+          "room": "G1301"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0601",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Kalani Kasthuriarachchi, Ms. Wathsala Rathnayake",
+          "room": "G1304"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "Y1.S1.WD.IT.0601",
+          "subject": "IT1130 - MC Practical",
+          "teacher": "Ms. Kalani Kasthuriarachchi, Ms. Wathsala Rathnayake",
+          "room": "G1304"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1130 - MC Lecture, Tutorial",
+          "teacher": "Ms. Nipuni Maleesha",
+          "room": "F1308"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1130 - MC Lecture, Tutorial",
+          "teacher": "Ms. Nipuni Maleesha",
+          "room": "F1308"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1130 - MC Lecture, Tutorial",
+          "teacher": "Ms. Nipuni Maleesha",
+          "room": "F1308"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1190 - EAC Group D Lecture",
+          "teacher": "F1308",
+          "room": ""
+        }
+      ]
+    },
+    "Friday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1140 - FC Lecture Online",
+          "teacher": "Ms. Thisara Shyamalee",
+          "room": ""
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1140 - FC Lecture Online",
+          "teacher": "Ms. Thisara Shyamalee",
+          "room": ""
+        }
+      ]
+    }
+  },
+  "Y1.S1.WD.CS/CSE.01": {
+    "Monday": {
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "IE1004 - CT Lecture",
+          "teacher": "Prof. Anuradha Jayakody, Mr. Dinith Primal",
+          "room": "F1306"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "IE1004 - CT Lecture",
+          "teacher": "Prof. Anuradha Jayakody, Mr. Dinith Primal",
+          "room": "F1306"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "SE1022 - DM Lecture",
+          "teacher": "Dr. Kapila Dissanayake",
+          "room": "F1307"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "SE1022 - DM Lecture",
+          "teacher": "Dr. Kapila Dissanayake",
+          "room": "F1307"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "SE1022 - DM Lecture",
+          "teacher": "Dr. Kapila Dissanayake",
+          "room": "F1307"
+        }
+      ]
+    },
+    "Tuesday": {
+      "08:30": [
+        {
+          "subgroup": "Y1.S1.WD.CS/CSE.0102",
+          "subject": "IE1014 - EM I Practical",
+          "teacher": "Ms. Dinithi Dilshani, Ms. Nadeeshani Wickramage",
+          "room": "G1305"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "Y1.S1.WD.CS/CSE.0102",
+          "subject": "IE1014 - EM I Practical",
+          "teacher": "Ms. Dinithi Dilshani, Ms. Nadeeshani Wickramage",
+          "room": "G1305"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "Y1.S1.WD.CS/CSE.0101",
+          "subject": "IE1014 - EM I Practical",
+          "teacher": "Ms. Dinithi Dilshani, Ms. Nadeeshani Wickramage",
+          "room": "G1305"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "Y1.S1.WD.CS/CSE.0101",
+          "subject": "IE1014 - EM I Practical",
+          "teacher": "Ms. Dinithi Dilshani, Ms. Nadeeshani Wickramage",
+          "room": "G1305"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "SE1032 - CS Lecture",
+          "teacher": "Ms. Ashani Peiris",
+          "room": "F1307"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "SE1032 - CS Lecture",
+          "teacher": "Ms. Ashani Peiris",
+          "room": "F1307"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "SE1032 - CS Lecture",
+          "teacher": "Ms. Ashani Peiris",
+          "room": "F1307"
+        }
+      ]
+    },
+    "Wednesday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "SE1012 - PM Lecture",
+          "teacher": "F1306",
+          "room": ""
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "SE1012 - PM Lecture",
+          "teacher": "F1306",
+          "room": ""
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "IE1004 - CT Practical BYOD",
+          "teacher": "Ms. Kasuni Navodana, Mr. Chamika Senadheera",
+          "room": "G1103"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "IE1004 - CT Practical BYOD",
+          "teacher": "Ms. Kasuni Navodana, Mr. Chamika Senadheera",
+          "room": "G1103"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "IE1004 - CT Practical BYOD",
+          "teacher": "Ms. Kasuni Navodana, Mr. Chamika Senadheera",
+          "room": "G1103"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "",
+          "subject": "IE1004 - CT Practical BYOD",
+          "teacher": "Ms. Kasuni Navodana, Mr. Chamika Senadheera",
+          "room": "G1103"
+        }
+      ]
+    },
+    "Thursday": {
+      "08:30": [
+        {
+          "subgroup": "Y1.S1.WD.CS/CSE.0101",
+          "subject": "SE1012 - PM Practical",
+          "teacher": "Ms. Heshani Bopage",
+          "room": "G1305"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "Y1.S1.WD.CS/CSE.0101",
+          "subject": "SE1012 - PM Practical",
+          "teacher": "Ms. Heshani Bopage",
+          "room": "G1305"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "IE1014 - EM I Lecture",
+          "teacher": "Mr. Thimira Abeywardhana",
+          "room": "F301"
+        }
+      ],
+      "12:30": [
+        {
+          "subgroup": "",
+          "subject": "IE1014 - EM I Lecture",
+          "teacher": "Mr. Thimira Abeywardhana",
+          "room": "F301"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "Y1.S1.WD.CS/CSE.0102",
+          "subject": "SE1012 - PM Practical",
+          "teacher": "Ms. Heshani Bopage",
+          "room": "G1305"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "Y1.S1.WD.CS/CSE.0102",
+          "subject": "SE1012 - PM Practical",
+          "teacher": "Ms. Heshani Bopage",
+          "room": "G1305"
+        }
+      ]
+    },
+    "Friday": {}
+  },
+  "Y1.S1.WD.IT.01.Deakin-AI": {
+    "Monday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1140 - FC Practical",
+          "room": "Mr. Sandun Meesara"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1140 - FC Practical",
+          "room": "Mr. Sandun Meesara"
+        }
+      ]
+    },
+    "Tuesday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Lecture",
+          "teacher": "Ms. Kaushika Kavindi Kahatapitiya",
+          "room": "F1307"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Lecture",
+          "teacher": "Ms. Kaushika Kavindi Kahatapitiya",
+          "room": "F1307"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Tutorial",
+          "teacher": "Ms. Harini Gunawardana",
+          "room": "F1307"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Pubudika Wijesundara"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Pubudika Wijesundara"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Pubudika Wijesundara"
+        }
+      ]
+    },
+    "Wednesday": {
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IE1030 - DCN Lecture",
+          "room": "Mr. Indunil Vishvajith Daluwatte"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IE1030 - DCN Lecture",
+          "room": "Mr. Indunil Vishvajith Daluwatte"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IE1030 - DCN Tutorial",
+          "room": "Mr. Indunil Vishvajith Daluwatte, Ms. Akshi Himahansi De Silva"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1140 - FC Lecture",
+          "room": "Prof. Sanvitha Kasturiarachchi"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1140 - FC Lecture",
+          "room": "Prof. Sanvitha Kasturiarachchi"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1140 - FC Tutorial",
+          "room": "Ms. Aruni Premarathne"
+        }
+      ]
+    },
+    "Thursday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IE1030 - DCN Practical",
+          "room": "Instructor 04"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IE1030 - DCN Practical",
+          "room": "Instructor 04"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1130 - MC Practical",
+          "room": "Ms. Devmini Poornima"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1130 - MC Practical",
+          "room": "Ms. Devmini Poornima"
+        }
+      ]
+    },
+    "Friday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Kaushika Kavindi Kahatapitiya",
+          "room": "A411"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "IT1120 - IP Practical",
+          "teacher": "Ms. Kaushika Kavindi Kahatapitiya",
+          "room": "A411"
+        }
+      ]
+    }
+  },
+  "Y1.S1.WD.IT.01.QU": {
+    "Monday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1140 - FC Practical",
+          "room": "Mr. Sandun Meesara"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1140 - FC Practical",
+          "room": "Mr. Sandun Meesara"
+        }
+      ]
+    },
+    "Tuesday": {
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "IT2140 - DDD Lecture, Tutorial",
+          "teacher": "Ms. Tharushi Rubasinghe",
+          "room": "A507"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "IT2140 - DDD Lecture, Tutorial",
+          "teacher": "Ms. Tharushi Rubasinghe",
+          "room": "A507"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "IT2140 - DDD Lecture, Tutorial",
+          "teacher": "Ms. Tharushi Rubasinghe",
+          "room": "A507"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Pubudika Wijesundara"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Pubudika Wijesundara"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1130 - MC Lecture, Tutorial",
+          "room": "Ms. Pubudika Wijesundara"
+        }
+      ]
+    },
+    "Wednesday": {
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IE1030 - DCN Lecture",
+          "room": "Mr. Indunil Vishvajith Daluwatte"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IE1030 - DCN Lecture",
+          "room": "Mr. Indunil Vishvajith Daluwatte"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IE1030 - DCN Tutorial",
+          "room": "Mr. Indunil Vishvajith Daluwatte, Ms. Akshi Himahansi De Silva"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1140 - FC Lecture",
+          "room": "Prof. Sanvitha Kasturiarachchi"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1140 - FC Lecture",
+          "room": "Prof. Sanvitha Kasturiarachchi"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1140 - FC Tutorial",
+          "room": "Ms. Aruni Premarathne"
+        }
+      ]
+    },
+    "Thursday": {
+      "08:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IE1030 - DCN Practical",
+          "room": "Instructor 04"
+        }
+      ],
+      "09:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IE1030 - DCN Practical",
+          "room": "Instructor 04"
+        }
+      ],
+      "10:30": [
+        {
+          "subgroup": "",
+          "subject": "SE1012 - PM Lecture",
+          "teacher": "Ms. Heshani Bopage",
+          "room": "F605"
+        }
+      ],
+      "11:30": [
+        {
+          "subgroup": "",
+          "subject": "SE1012 - PM Lecture",
+          "teacher": "Ms. Heshani Bopage",
+          "room": "F605"
+        }
+      ],
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "IT2140 - DDD Practical",
+          "teacher": "Ms. Hasini Herath",
+          "room": "A411"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "IT2140 - DDD Practical",
+          "teacher": "Ms. Hasini Herath",
+          "room": "A411"
+        }
+      ],
+      "15:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1130 - MC Practical",
+          "room": "Ms. Devmini Poornima"
+        }
+      ],
+      "16:30": [
+        {
+          "subgroup": "",
+          "subject": "Y1.S1.WD.IT.01.Deakin-AI, Y1.S1.WD.IT.01.QU",
+          "teacher": "IT1130 - MC Practical",
+          "room": "Ms. Devmini Poornima"
+        }
+      ]
+    },
+    "Friday": {
+      "13:30": [
+        {
+          "subgroup": "",
+          "subject": "SE1012 - PM Practical",
+          "teacher": "Ms. Heshani Bopage",
+          "room": "G1305"
+        }
+      ],
+      "14:30": [
+        {
+          "subgroup": "",
+          "subject": "SE1012 - PM Practical",
+          "teacher": "Ms. Heshani Bopage",
+          "room": "G1305"
+        }
+      ]
+    }
+  }
+}
