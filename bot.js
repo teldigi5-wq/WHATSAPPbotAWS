@@ -190,8 +190,9 @@ let db = {
     admins:        [],
     banned:        [],
     broadcasts:    [],
-    waGroups:      {},   // slot_key → { jid, inviteLink, name, createdAt }
+    waGroups:      {},   // slot_key → { jid, inviteLink, name, createdAt, adminPromoted, botLeft }
     projectGroups: {},   // project_group → { members: ["IT26XXXXXX", ...], addedBy, createdAt }
+    groupLinks:    {},   // project_group → { inviteLink, slotKey, updatedAt }  — searchable by students
 };
 
 // ─── WEB SERVER ───────────────────────────────────────────────────────────────
@@ -347,6 +348,7 @@ function loadDB() {
             if (!db.admins)        db.admins        = [];
             if (!db.banned)        db.banned        = [];
             if (!db.broadcasts)    db.broadcasts    = [];
+            if (!db.groupLinks)    db.groupLinks    = {};
             console.log(`📦 DB loaded — ${Object.keys(db.registrations).length} registrations, ${Object.keys(db.waGroups).length} WA groups`);
         }
     } catch(e) { console.error('DB load error:', e.message); }
@@ -547,7 +549,16 @@ async function getOrCreateWAGroup(slot, projectGroup) {
             inviteLink = `https://chat.whatsapp.com/${code}`;
         } catch(e) { console.warn(`⚠️  Could not get invite link for ${slot}:`, e.message); }
 
-        db.waGroups[slot] = { jid: gid, inviteLink, name: groupName, createdAt: nowISO() };
+        db.waGroups[slot] = { jid: gid, inviteLink, name: groupName, createdAt: nowISO(), adminPromoted: false, botLeft: false };
+
+        // ── Store in groupLinks directory (keyed by base project group) ────────
+        // Always point to the first slot for a project group; overflow slots
+        // are handled by resolveGroupSlot so the base key stays consistent.
+        const basePG = slot.includes('_') ? slot.split('_')[0] : slot;
+        if (inviteLink && (!db.groupLinks[basePG] || slot === basePG)) {
+            db.groupLinks[basePG] = { inviteLink, slotKey: slot, updatedAt: nowISO() };
+        }
+
         saveDB();
         console.log(`✅ Group created: ${groupName} → ${gid}`);
         await sleep(1500);
@@ -599,6 +610,99 @@ async function sendGroupInvite(studentJid, slot, gid) {
     } catch(e) {
         console.error(`❌ sendGroupInvite error:`, e.message);
         return { ok: false, reason: e.message, slot };
+    }
+}
+
+// ─── AUTO-PROMOTE FIRST MEMBER → MAKE ADMIN → BOT LEAVES ─────────────────────
+/**
+ * Called whenever participants join a project WA group.
+ * Finds the first non-bot participant, promotes them to admin, then the bot leaves.
+ * Safe to call multiple times — idempotent via adminPromoted / botLeft flags.
+ */
+async function handleGroupAutoPromote(gid, slotKey, wg) {
+    try {
+        // Fetch current group metadata to get participant list
+        const meta = await sock.groupMetadata(gid);
+        const botJid = sock.user?.id ? jidNormalizedUser(sock.user.id) : null;
+
+        // Filter out the bot itself — we want the first real human participant
+        const realMembers = meta.participants.filter(p => {
+            const pNum = jidNum(p.id);
+            return botJid ? jidNum(botJid) !== pNum : true;
+        });
+
+        if (realMembers.length === 0) {
+            console.log(`⏳ Group ${slotKey}: no real members yet — waiting for first join.`);
+            return;
+        }
+
+        // Sort by join order if available; otherwise take index 0
+        const firstMember = realMembers[0];
+        const firstMemberJid = firstMember.id;
+
+        console.log(`👑 Auto-promoting first member in ${slotKey}: ${jidNum(firstMemberJid)}`);
+
+        // Promote to admin
+        try {
+            await sock.groupParticipantsUpdate(gid, [firstMemberJid], 'promote');
+            console.log(`✅ Promoted ${jidNum(firstMemberJid)} to admin in ${slotKey}`);
+        } catch(e) {
+            console.warn(`⚠️  Could not promote ${jidNum(firstMemberJid)} in ${slotKey}: ${e.message}`);
+            // Still attempt to leave even if promote failed
+        }
+
+        // Mark promoted before leaving so we don't re-enter
+        wg.adminPromoted = true;
+        saveDB();
+
+        // Send a welcome message in the group before leaving
+        try {
+            await sleep(1500);
+            await sock.sendMessage(gid, {
+                text: [
+                    `👑 *@${jidNum(firstMemberJid)} has been made group admin!*`,
+                    ``,
+                    `🤖 The bot has set up this group and will now leave.`,
+                    `You can manage the group from here.`,
+                    ``,
+                    `📌 Group: *${slotKey}*`,
+                    `💡 Students can get this group's link by sending *JOINGROUP ${slotKey.split('_')[0]}* to the bot.`,
+                ].join('\n'),
+                mentions: [firstMemberJid],
+            });
+        } catch(e) {
+            console.warn(`⚠️  Could not send farewell message in ${slotKey}: ${e.message}`);
+        }
+
+        // Refresh invite link before leaving (link stays valid after bot leaves)
+        try {
+            const code = await sock.groupInviteCode(gid);
+            const freshLink = `https://chat.whatsapp.com/${code}`;
+            wg.inviteLink = freshLink;
+            // Update groupLinks directory too
+            const basePG = slotKey.includes('_') ? slotKey.split('_')[0] : slotKey;
+            if (!db.groupLinks[basePG] || db.groupLinks[basePG].slotKey === slotKey) {
+                db.groupLinks[basePG] = { inviteLink: freshLink, slotKey, updatedAt: nowISO() };
+            }
+            saveDB();
+            console.log(`🔗 Refreshed invite link for ${slotKey} before leaving.`);
+        } catch(e) {
+            console.warn(`⚠️  Could not refresh invite link for ${slotKey}: ${e.message}`);
+        }
+
+        // Leave the group
+        await sleep(2000);
+        try {
+            await sock.groupLeave(gid);
+            wg.botLeft = true;
+            saveDB();
+            console.log(`🚪 Bot left group ${slotKey} (${gid})`);
+        } catch(e) {
+            console.error(`❌ Failed to leave group ${slotKey}: ${e.message}`);
+        }
+
+    } catch(e) {
+        console.error(`❌ handleGroupAutoPromote error for ${slotKey}: ${e.message}`);
     }
 }
 
@@ -961,6 +1065,8 @@ async function processMessage(jid, msg, body) {
                 `*MYGROUPS*     Timetable & project group`,
                 `*MYLINK*       WhatsApp group invite link`,
                 `*CLASSMATES*   Who's in your project group`,
+                `*JOINGROUP <group>*  Get any group's link`,
+                `            e.g. JOINGROUP WD01`,
                 ``,
                 `━━━━ 📅 *Timetable* ━━━━`,
                 ``,
@@ -1165,6 +1271,89 @@ async function processMessage(jid, msg, body) {
                 `${wg.inviteLink}`,
                 ``,
                 `Tap the link to join your group.`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── JOINGROUP — get invite link for any project group ─────────────────
+        if (cmd === 'JOINGROUP' || cmd === 'GETLINK') {
+            const reg = db.registrations[sid];
+            if (!reg) {
+                await reply(withFooter(`⚠️ *Not Registered*\n\nSend *REG IT26XXXXXX* to register first.`));
+                return;
+            }
+            if (!arg1) {
+                // List all available groups
+                const groupKeys = Object.keys(db.groupLinks).sort();
+                if (groupKeys.length === 0) {
+                    await reply(withFooter([
+                        `⚠️ *No project group links available yet.*`,
+                        ``,
+                        `Groups are created when the first member registers.`,
+                        `Send *MYGROUPS* to see your own group link.`,
+                    ].join('\n')));
+                    return;
+                }
+                const lines = [
+                    `╔══════════════════════════╗`,
+                    `  🔗 *Available Group Links*`,
+                    `╚══════════════════════════╝`,
+                    ``,
+                    `Send *JOINGROUP <group>* to get the link.`,
+                    ``,
+                    `Available groups:`,
+                    ...groupKeys.map(k => `  • *${k}*`),
+                    ``,
+                    `Example: JOINGROUP WD01`,
+                ];
+                await reply(withFooter(lines.join('\n')));
+                return;
+            }
+            const pgKey = arg1.toUpperCase();
+            // Check groupLinks directory first
+            const glEntry = db.groupLinks[pgKey];
+            if (glEntry?.inviteLink) {
+                const slot = glEntry.slotKey;
+                const wg   = db.waGroups[slot];
+                const memberCount = slot ? registeredCountInSlot(slot) : 0;
+                await reply(withFooter([
+                    `🔗 *Project Group Link*`,
+                    ``,
+                    `📌 Group: *${pgKey}*`,
+                    wg?.name ? `📛 Name: ${wg.name}` : '',
+                    `👥 Members: ${memberCount}/${MAX_STUDENTS_PER_GROUP}`,
+                    ``,
+                    `${glEntry.inviteLink}`,
+                    ``,
+                    `Tap the link to join the group.`,
+                ].filter(l => l !== '').join('\n')));
+                return;
+            }
+            // Fall back to waGroups lookup (exact slot match)
+            const wg = db.waGroups[pgKey];
+            if (wg?.inviteLink) {
+                const memberCount = registeredCountInSlot(pgKey);
+                await reply(withFooter([
+                    `🔗 *Project Group Link*`,
+                    ``,
+                    `📌 Group: *${pgKey}*`,
+                    `👥 Members: ${memberCount}/${MAX_STUDENTS_PER_GROUP}`,
+                    ``,
+                    `${wg.inviteLink}`,
+                    ``,
+                    `Tap the link to join the group.`,
+                ].join('\n')));
+                return;
+            }
+            // Not found
+            const groupKeys = Object.keys(db.groupLinks).sort();
+            await reply(withFooter([
+                `❌ *Group "${pgKey}" not found or link not available yet.*`,
+                ``,
+                `Available groups:`,
+                groupKeys.length ? groupKeys.map(k => `  • ${k}`).join('\n') : `  (none yet)`,
+                ``,
+                `Send *JOINGROUP* (without a group name) to list all groups.`,
             ].join('\n')));
             return;
         }
@@ -1501,6 +1690,10 @@ async function processMessage(jid, msg, body) {
                 `*LISTBANNED*         → List banned users`,
                 `*GROUPSTATUS*        → All WA group slots & member counts`,
                 `*GROUPLINK WD01*     → Get invite link for a group slot`,
+                `*LISTGROUPLINKS*     → All stored group links (student-facing)`,
+                `*REFRESHGROUPLINK WD01*   → Re-fetch & save group invite link`,
+                `*SETGROUPLINK WD01 <url>* → Manually set a group link`,
+                `*AUTOPROMOTE WD01*   → Force promote first member & bot leaves`,
                 `*LOOKUP 94XXXXXXXXX* → Find student by WA number`,
                 ``,
             ];
@@ -1787,6 +1980,124 @@ async function processMessage(jid, msg, body) {
             return;
         }
 
+        // ── REFRESHGROUPLINK — re-fetch + save invite link ────────────────────
+        if (cmd === 'REFRESHGROUPLINK') {
+            if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
+            if (!arg1) { await reply(withFooter(`❌ Usage: *REFRESHGROUPLINK WD01*`)); return; }
+            const slotKey = arg1.toUpperCase();
+            const wg = db.waGroups[slotKey];
+            if (!wg) {
+                await reply(withFooter(`❌ Slot *${slotKey}* not found. Use *GROUPSTATUS* to list all slots.`));
+                return;
+            }
+            try {
+                const code = await sock.groupInviteCode(wg.jid);
+                const freshLink = `https://chat.whatsapp.com/${code}`;
+                wg.inviteLink = freshLink;
+                const basePG = slotKey.includes('_') ? slotKey.split('_')[0] : slotKey;
+                db.groupLinks[basePG] = { inviteLink: freshLink, slotKey, updatedAt: nowISO() };
+                saveDB();
+                await reply(withFooter([
+                    `✅ *Link refreshed for ${slotKey}*`,
+                    ``,
+                    `${freshLink}`,
+                    ``,
+                    `Students can now get this via *JOINGROUP ${basePG}*`,
+                ].join('\n')));
+            } catch(e) {
+                await reply(withFooter(`❌ Could not refresh link: ${e.message}\n\nIf the bot left the group already, use *SETGROUPLINK ${slotKey} <link>* instead.`));
+            }
+            return;
+        }
+
+        // ── SETGROUPLINK — manually set a stored invite link ──────────────────
+        if (cmd === 'SETGROUPLINK') {
+            if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
+            if (!arg1 || !arg2) {
+                await reply(withFooter([
+                    `❌ Usage: *SETGROUPLINK WD01 https://chat.whatsapp.com/XXXX*`,
+                    ``,
+                    `Use when the bot has left the group and you need to`,
+                    `manually update the stored invite link.`,
+                ].join('\n')));
+                return;
+            }
+            const slotKey = arg1.toUpperCase();
+            const newLink = arg2.trim();
+            if (!newLink.startsWith('https://chat.whatsapp.com/')) {
+                await reply(withFooter(`❌ Invalid link. Must start with: https://chat.whatsapp.com/`));
+                return;
+            }
+            if (db.waGroups[slotKey]) db.waGroups[slotKey].inviteLink = newLink;
+            const basePG = slotKey.includes('_') ? slotKey.split('_')[0] : slotKey;
+            db.groupLinks[basePG] = { inviteLink: newLink, slotKey, updatedAt: nowISO() };
+            saveDB();
+            await reply(withFooter([
+                `✅ *Link updated for ${slotKey}*`,
+                ``,
+                `${newLink}`,
+                ``,
+                `Students can now get this via *JOINGROUP ${basePG}*`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── AUTOPROMOTE — manually trigger auto-promote for a group ───────────
+        if (cmd === 'AUTOPROMOTE') {
+            if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
+            if (!arg1) {
+                await reply(withFooter(`❌ Usage: *AUTOPROMOTE WD01*\n\nForce the auto-promote + leave flow for a group slot.`));
+                return;
+            }
+            const slotKey = arg1.toUpperCase();
+            const wg = db.waGroups[slotKey];
+            if (!wg) { await reply(withFooter(`❌ Slot *${slotKey}* not found.`)); return; }
+            if (wg.botLeft) { await reply(withFooter(`ℹ️ Bot has already left group *${slotKey}*.`)); return; }
+            wg.adminPromoted = false;  // reset so handler runs
+            saveDB();
+            await reply(withFooter(`⏳ Triggering auto-promote for *${slotKey}*...`));
+            await handleGroupAutoPromote(wg.jid, slotKey, wg);
+            await reply(withFooter(
+                wg.botLeft
+                    ? `✅ *Done!* Bot promoted first member and left *${slotKey}*.`
+                    : `⚠️ Could not complete. Check logs.`
+            ));
+            return;
+        }
+
+        // ── LISTGROUPLINKS — list all stored group links ───────────────────────
+        if (cmd === 'LISTGROUPLINKS') {
+            if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
+            const keys = Object.keys(db.groupLinks).sort();
+            if (keys.length === 0) {
+                await reply(withFooter(`⚠️ No group links stored yet.\nThey are saved automatically when groups are created.`));
+                return;
+            }
+            const lines = [
+                `╔══════════════════════════╗`,
+                `  🔗 *Stored Group Links*`,
+                `╚══════════════════════════╝`,
+                ``,
+            ];
+            for (const k of keys) {
+                const entry = db.groupLinks[k];
+                lines.push(`*${k}*  (slot: ${entry.slotKey})`);
+                lines.push(`  ${entry.inviteLink}`);
+                lines.push('');
+            }
+            lines.push(`Total: ${keys.length} groups`);
+            const full = withFooter(lines.join('\n'));
+            if (full.length < 4000) {
+                await reply(full);
+            } else {
+                const half = Math.floor(lines.length / 2);
+                await reply(withFooter(lines.slice(0, half).join('\n')));
+                await sleep(800);
+                await reply(withFooter(lines.slice(half).join('\n')));
+            }
+            return;
+        }
+
         // ── LISTADMINS ────────────────────────────────────────────────────────
         if (cmd === 'LISTADMINS') {
             if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
@@ -1992,6 +2303,43 @@ async function startBot() {
                 }
             }
         });
+
+        // ── AUTO-PROMOTE FIRST REAL MEMBER, THEN BOT LEAVES ───────────────────
+        // Triggered whenever a group's participant list changes.
+        // For every project-group WA group that hasn't had an admin promoted yet:
+        //   1. Find participants who are NOT the bot.
+        //   2. Promote the first one to admin.
+        //   3. Mark adminPromoted=true, then leave the group.
+        sock.ev.on('groups.update', async (updates) => {
+            for (const update of updates) {
+                try {
+                    const gid = update.id;
+                    // Find the slot entry for this group JID
+                    const slotEntry = Object.entries(db.waGroups).find(([, v]) => v.jid === gid);
+                    if (!slotEntry) continue;
+                    const [slotKey, wg] = slotEntry;
+                    if (wg.adminPromoted || wg.botLeft) continue; // already handled
+                    await handleGroupAutoPromote(gid, slotKey, wg);
+                } catch(e) {
+                    console.error(`❌ groups.update handler error:`, e.message);
+                }
+            }
+        });
+
+        sock.ev.on('group-participants.update', async (update) => {
+            try {
+                const { id: gid, participants, action } = update;
+                if (action !== 'add') return;  // only care about joins
+                const slotEntry = Object.entries(db.waGroups).find(([, v]) => v.jid === gid);
+                if (!slotEntry) return;
+                const [slotKey, wg] = slotEntry;
+                if (wg.adminPromoted || wg.botLeft) return;
+                await handleGroupAutoPromote(gid, slotKey, wg);
+            } catch(e) {
+                console.error(`❌ group-participants.update handler error:`, e.message);
+            }
+        });
+
 
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect, qr } = update;
