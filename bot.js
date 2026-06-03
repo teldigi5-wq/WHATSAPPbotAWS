@@ -14,7 +14,45 @@ process.on('unhandledRejection', e => console.error('💥 unhandledRejection:', 
 const PORT        = process.env.PORT || 8080;
 // Your number — plain digits, no @s.whatsapp.net
 const SUPER_ADMIN = process.env.SUPER_ADMIN || '94772197530';
-const SUPER_ADMIN_LIDS = ['20985227042855']; // LID fallback for super admin
+const SUPER_ADMIN_LIDS = ['20985227042855'];
+
+const AI_PROVIDERS = {
+    gemini: {
+        name: 'Google Gemini', emoji: '🟦',
+        call: async (question, sys) => {
+            const key = process.env.GEMINI_API_KEY || '';
+            if (!key) throw new Error('No Gemini API key');
+            const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ contents:[{parts:[{text: sys+'\n\n'+question}]}], generationConfig:{maxOutputTokens:600} })
+            });
+            const d = await r.json();
+            if(d.error) throw new Error(d.error.message);
+            return d?.candidates?.[0]?.content?.parts?.[0]?.text || 'No answer.';
+        }
+    },
+    chatgpt: {
+        name: 'ChatGPT', emoji: '🟩',
+        call: async (question, sys) => {
+            const key = process.env.OPENAI_API_KEY || '';
+            if (!key) throw new Error('No OpenAI API key');
+            const r = await fetch('https://api.openai.com/v1/chat/completions', {
+                method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+                body: JSON.stringify({ model:'gpt-4o-mini', max_tokens:600, messages:[{role:'system',content:sys},{role:'user',content:question}] })
+            });
+            const d = await r.json();
+            if(d.error) throw new Error(d.error.message);
+            return d?.choices?.[0]?.message?.content || 'No answer.';
+        }
+    }
+};
+function getAIProvider(jid) {
+    const p = db.aiProvider && db.aiProvider[jid];
+    if (p && AI_PROVIDERS[p]) return p;
+    if (process.env.GEMINI_API_KEY) return 'gemini';
+    if (process.env.OPENAI_API_KEY) return 'chatgpt';
+    return 'gemini';
+} // LID fallback for super admin
 
 // Bot credit shown at the bottom of every reply
 const BOT_FOOTER = [
@@ -349,6 +387,7 @@ function loadDB() {
             if (!db.banned)        db.banned        = [];
             if (!db.broadcasts)    db.broadcasts    = [];
             if (!db.languages)     db.languages     = {};
+            if (!db.aiProvider)    db.aiProvider    = {};
             if (!db.groupLinks)    db.groupLinks    = {};
             if (!db.aiSessions)    db.aiSessions    = {};
             console.log(`📦 DB loaded — ${Object.keys(db.registrations).length} registrations, ${Object.keys(db.waGroups).length} WA groups`);
@@ -1136,6 +1175,29 @@ async function processMessage(jid, msg, body) {
             return;
         }
 
+        // ── SETAI ────────────────────────────────────────────────────────────
+        if (cmd === 'SETAI' || cmd === 'USEAI') {
+            const lang = getLang(sid);
+            const ch = (arg1||'').toLowerCase();
+            if (!ch) {
+                const cur = getAIProvider(sid);
+                const lines = [
+                    lang==='si' ? '🤖 *AI සේවාව තෝරන්න*' : '🤖 *Select AI Provider*', '',
+                    (lang==='si' ? 'දැනට: ' : 'Current: ') + AI_PROVIDERS[cur].emoji + ' *' + AI_PROVIDERS[cur].name + '*', '',
+                    '*SETAI gemini*  🟦 Google Gemini ' + (process.env.GEMINI_API_KEY ? '✅' : '❌'),
+                    '*SETAI chatgpt* 🟩 ChatGPT ' + (process.env.OPENAI_API_KEY ? '✅' : '❌'),
+                ];
+                await reply(withFooter(lines.join('\n'))); return;
+            }
+            if (!AI_PROVIDERS[ch]) {
+                await reply(withFooter('❌ Options: *SETAI gemini* or *SETAI chatgpt*')); return;
+            }
+            if (!db.aiProvider) db.aiProvider = {};
+            db.aiProvider[sid] = ch; saveDB();
+            await reply(withFooter('✅ *AI set to ' + AI_PROVIDERS[ch].emoji + ' ' + AI_PROVIDERS[ch].name + '!*\n\nNow use *ASK <question>*'));
+            return;
+        }
+
         // ── QUOTE — motivational quote ────────────────────────────────────────
         if (cmd === 'QUOTE' || cmd === 'MOTIVATE') {
             const lang = getLang(sid);
@@ -1144,54 +1206,40 @@ async function processMessage(jid, msg, body) {
             return;
         }
 
-        // ── ASK — AI assistant ────────────────────────────────────────────────
+        // ── ASK — Multi-AI assistant ──────────────────────────────────────────
         if (cmd === 'ASK' || cmd === 'AI') {
             const lang = getLang(sid);
             const question = body.replace(/^(ASK|AI)\s*/i, '').trim();
             if (!question) {
-                const usage = lang==='si'
-                    ? '❌ *ප්‍රශ්නයක් යවන්න!*\n\nඋදා: *ASK What is a database?*\nඋදා: *ASK OOP explain කරන්න*'
-                    : '❌ *Please include your question!*\n\nExample: *ASK What is a database?*\nExample: *ASK Explain recursion simply*';
-                await reply(withFooter(usage));
+                await reply(withFooter(lang==='si'
+                    ? '❌ *ප්‍රශ්නයක් යවන්න!*\n\nඋදා: *ASK What is a database?*\n\nAI මාරු කිරීමට: *SETAI gemini*'
+                    : '❌ *Please include your question!*\n\nExample: *ASK What is a database?*\n\nChange AI: *SETAI gemini* / *SETAI chatgpt*'
+                ));
                 return;
             }
             const reg = db.registrations[sid];
             const stuName = reg ? STUDENTS[reg]?.name?.split(' ')[0] : 'Student';
+            const provKey = getAIProvider(sid);
+            const prov = AI_PROVIDERS[provKey];
             await reply(withFooter(lang==='si'
-                ? `⏳ *AI සිතනවා...*\n\n"${question.slice(0,60)}${question.length>60?'...':''}" ගැන\n\nකරුණාකර රැඳී සිටින්න!`
-                : `⏳ *AI is thinking...*\n\nLooking into: "${question.slice(0,60)}${question.length>60?'...':''}"\n\nPlease wait a moment!`
+                ? `⏳ *${prov.emoji} ${prov.name} සිතනවා...*\n\n"${question.slice(0,50)}" ගැන`
+                : `⏳ *${prov.emoji} ${prov.name} is thinking...*\n\nLooking into: "${question.slice(0,50)}"`
             ));
             try {
-                const sysPrompt = `You are a helpful academic assistant for SLIIT (Sri Lanka Institute of Information Technology) Year 1 Semester 1 students. 
-The student's name is ${stuName}. 
-Answer questions about programming, databases, mathematics, IT concepts, and campus life.
-Keep answers clear, concise and student-friendly.
-Use simple English. If the question is in Sinhala, reply in Sinhala.
-Format code blocks with backticks. Keep answers under 400 words.`;
-                const resp = await fetch('https://api.anthropic.com/v1/messages', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        model: 'claude-haiku-4-5-20251001',
-                        max_tokens: 600,
-                        system: sysPrompt,
-                        messages: [{ role: 'user', content: question }]
-                    })
-                });
-                const data = await resp.json();
-                const answer = data?.content?.[0]?.text || 'Sorry, I could not get an answer.';
+                const sys = `You are a helpful academic assistant for SLIIT Year 1 Semester 1 students. Student name: ${stuName}. Answer questions about programming, databases, maths, IT concepts. Keep answers clear and concise under 350 words. Format code with backticks. If the question is in Sinhala, reply in Sinhala.`;
+                const answer = await prov.call(question, sys);
                 const header = lang==='si'
-                    ? `🤖 *AI සහායක*\n\n❓ *ප්‍රශ්නය:* ${question}\n\n💡 *පිළිතුර:*\n`
-                    : `🤖 *AI Assistant*\n\n❓ *Question:* ${question}\n\n💡 *Answer:*\n`;
-                const footer = lang==='si'
-                    ? `\n\n_තවත් ප්‍රශ්නයක් ඇත්නම් *ASK <ප්‍රශ්නය>* යවන්න_`
-                    : `\n\n_Ask another question with *ASK <question>*_`;
-                await reply(withFooter(header + answer + footer));
+                    ? `${prov.emoji} *${prov.name} සහායක*\n\n❓ *ප්‍රශ්නය:* ${question}\n\n💡 *පිළිතුර:*\n`
+                    : `${prov.emoji} *${prov.name} Assistant*\n\n❓ *Question:* ${question}\n\n💡 *Answer:*\n`;
+                const foot = lang==='si'
+                    ? `\n\n_AI මාරු කිරීමට *SETAI gemini* හෝ *SETAI chatgpt*_`
+                    : `\n\n_Change AI: *SETAI gemini* / *SETAI chatgpt*_`;
+                await reply(withFooter(header + answer + foot));
             } catch(e) {
                 console.error('❌ AI error:', e.message);
                 await reply(withFooter(lang==='si'
-                    ? '❌ *AI සේවාව දැන් ලබා ගත නොහැක.*\n\nපසුව නැවත උත්සාහ කරන්න.'
-                    : '❌ *AI service unavailable right now.*\n\nPlease try again later.'
+                    ? `❌ *${prov.name} සේවාව ලබා ගත නොහැක.*\n\n*SETAI chatgpt* ලෙස වෙනස් කරන්න.`
+                    : `❌ *${prov.name} unavailable.*\n\nTry: *SETAI chatgpt* or *SETAI gemini*`
                 ));
             }
             return;
