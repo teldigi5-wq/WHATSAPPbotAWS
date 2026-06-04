@@ -1836,8 +1836,11 @@ async function processMessage(jid, msg, body) {
             if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
             if (!arg1) { await reply(withFooter(`❌ Usage: *LOOKUP 94XXXXXXXXX*`)); return; }
             const waNum = arg1.replace(/[^0-9]/g, '');
-            const jidTarget = toJid(waNum);
-            const reg = db.registrations[jidTarget];
+            // Search all registrations including LIDs
+            let reg = null;
+            for (const [j, id] of Object.entries(db.registrations)) {
+                if (jidNum(j) === waNum) { reg = id; break; }
+            }
             if (!reg) {
                 await reply(withFooter(`❌ No registration found for number *${waNum}*`));
                 return;
