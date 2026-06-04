@@ -16,42 +16,34 @@ const PORT        = process.env.PORT || 8080;
 const SUPER_ADMIN = process.env.SUPER_ADMIN || '94772197530';
 const SUPER_ADMIN_LIDS = ['20985227042855'];
 
+
+async function callGroq(model, question, sys) {
+    const key = process.env.GROQ_API_KEY || '';
+    if (!key) throw new Error('No Groq key');
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+key},
+        body: JSON.stringify({
+            model: model,
+            max_tokens: 600,
+            messages: [{role:'system',content:sys},{role:'user',content:question}]
+        })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error.message||JSON.stringify(d.error));
+    return d?.choices?.[0]?.message?.content || 'No answer.';
+}
+
 const AI_PROVIDERS = {
-    gemini: {
-        name: 'Google Gemini', emoji: '🟦',
-        call: async (question, sys) => {
-            const key = process.env.GEMINI_API_KEY || '';
-            if (!key) throw new Error('No Gemini API key');
-            const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
-                method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ contents:[{parts:[{text: sys+'\n\n'+question}]}], generationConfig:{maxOutputTokens:600} })
-            });
-            const d = await r.json();
-            if(d.error) throw new Error(d.error.message);
-            return d?.candidates?.[0]?.content?.parts?.[0]?.text || 'No answer.';
-        }
-    },
-    chatgpt: {
-        name: 'ChatGPT', emoji: '🟩',
-        call: async (question, sys) => {
-            const key = process.env.OPENAI_API_KEY || '';
-            if (!key) throw new Error('No OpenAI API key');
-            const r = await fetch('https://api.openai.com/v1/chat/completions', {
-                method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-                body: JSON.stringify({ model:'gpt-4o-mini', max_tokens:600, messages:[{role:'system',content:sys},{role:'user',content:question}] })
-            });
-            const d = await r.json();
-            if(d.error) throw new Error(d.error.message);
-            return d?.choices?.[0]?.message?.content || 'No answer.';
-        }
-    }
+    gemini: { name: 'Google Gemma 2', emoji: '🟦', call: async (q,s) => callGroq('llama-3.1-8b-instant', q, s) },
+    llama:  { name: 'Llama 3.3 70B',  emoji: '🦙', call: async (q,s) => callGroq('llama-3.3-70b-versatile', q, s) },
+    mistral:{ name: 'Mistral Saba',   emoji: '⚡', call: async (q,s) => callGroq('mistral-saba-24b', q, s) },
+    deepseek:{ name: 'DeepSeek R1',   emoji: '🔬', call: async (q,s) => callGroq('deepseek-r1-distill-llama-70b', q, s) }
 };
 function getAIProvider(jid) {
     const p = db.aiProvider && db.aiProvider[jid];
     if (p && AI_PROVIDERS[p]) return p;
-    if (process.env.GEMINI_API_KEY) return 'gemini';
-    if (process.env.OPENAI_API_KEY) return 'chatgpt';
-    return 'gemini';
+    return 'llama';
 } // LID fallback for super admin
 
 // Bot credit shown at the bottom of every reply
@@ -1135,7 +1127,7 @@ async function processMessage(jid, msg, body) {
                     ``,
                     `━━━━ 🤖 *AI Assistant* ━━━━`,
                     ``,
-                    `*ASK <question>*  Ask the AI anything!`,
+                    `━━━━ 🤖 *AI Assistant* ━━━━`,
                     `  e.g. ASK What is a database?`,
                     `  e.g. ASK Explain OOP in simple terms`,
                     `  e.g. ASK Help me understand recursion`,
@@ -1184,13 +1176,15 @@ async function processMessage(jid, msg, body) {
                 const lines = [
                     lang==='si' ? '🤖 *AI සේවාව තෝරන්න*' : '🤖 *Select AI Provider*', '',
                     (lang==='si' ? 'දැනට: ' : 'Current: ') + AI_PROVIDERS[cur].emoji + ' *' + AI_PROVIDERS[cur].name + '*', '',
-                    '*SETAI gemini*  🟦 Google Gemini ' + (process.env.GEMINI_API_KEY ? '✅' : '❌'),
-                    '*SETAI chatgpt* 🟩 ChatGPT ' + (process.env.OPENAI_API_KEY ? '✅' : '❌'),
+                    '*SETAI gemini*  🟦 Google Gemma 4 ✅',
+                    '*SETAI llama*   🦙 Llama Nvidia ✅',
+                    '*SETAI kimi*    🌙 Kimi AI ✅',
+                    '*SETAI liquid*  💧 Liquid AI ✅',
                 ];
                 await reply(withFooter(lines.join('\n'))); return;
             }
             if (!AI_PROVIDERS[ch]) {
-                await reply(withFooter('❌ Options: *SETAI gemini* or *SETAI chatgpt*')); return;
+                await reply(withFooter('❌ Options: *SETAI gemini* or *SETAI llama*')); return;
             }
             if (!db.aiProvider) db.aiProvider = {};
             db.aiProvider[sid] = ch; saveDB();
@@ -1213,7 +1207,7 @@ async function processMessage(jid, msg, body) {
             if (!question) {
                 await reply(withFooter(lang==='si'
                     ? '❌ *ප්‍රශ්නයක් යවන්න!*\n\nඋදා: *ASK What is a database?*\n\nAI මාරු කිරීමට: *SETAI gemini*'
-                    : '❌ *Please include your question!*\n\nExample: *ASK What is a database?*\n\nChange AI: *SETAI gemini* / *SETAI chatgpt*'
+                    : '❌ *Please include your question!*\n\nExample: *ASK What is a database?*\n\nChange AI: *SETAI gemini* / *SETAI llama*'
                 ));
                 return;
             }
@@ -1232,141 +1226,14 @@ async function processMessage(jid, msg, body) {
                     ? `${prov.emoji} *${prov.name} සහායක*\n\n❓ *ප්‍රශ්නය:* ${question}\n\n💡 *පිළිතුර:*\n`
                     : `${prov.emoji} *${prov.name} Assistant*\n\n❓ *Question:* ${question}\n\n💡 *Answer:*\n`;
                 const foot = lang==='si'
-                    ? `\n\n_AI මාරු කිරීමට *SETAI gemini* හෝ *SETAI chatgpt*_`
-                    : `\n\n_Change AI: *SETAI gemini* / *SETAI chatgpt*_`;
+                    ? `\n\n_AI මාරු කිරීමට *SETAI gemini* හෝ *SETAI llama*_`
+                    : `\n\n_Change AI: *SETAI gemini* / *SETAI llama*_`;
                 await reply(withFooter(header + answer + foot));
             } catch(e) {
                 console.error('❌ AI error:', e.message);
                 await reply(withFooter(lang==='si'
-                    ? `❌ *${prov.name} සේවාව ලබා ගත නොහැක.*\n\n*SETAI chatgpt* ලෙස වෙනස් කරන්න.`
-                    : `❌ *${prov.name} unavailable.*\n\nTry: *SETAI chatgpt* or *SETAI gemini*`
-                ));
-            }
-            return;
-        }
-
-        // ── REG ───────────────────────────────────────────────────────────────
-        if (cmd === 'REG') {
-            if (!arg1) {
-                await reply(withFooter([
-                    `❌ *Missing Registration Number*`,
-                    ``,
-                    `📝 *How to register:*`,
-                    `Send: *REG IT26XXXXXX*`,
-                    ``,
-                    `Example: REG IT26101700`,
-                ].join('\n')));
-                return;
-            }
-            const { key, data } = lookupStudent(arg1);
-            if (!data) {
-                await reply(withFooter([
-                    `❌ *Student Not Found*`,
-                    ``,
-                    `🆔 Searched for: *${key}*`,
-                    ``,
-                    `Please double-check your IT number.`,
-                    `If the problem persists, contact admin.`,
-                    `📱 Support: 94772197530`,
-                ].join('\n')));
-                return;
-            }
-
-            const clash = Object.entries(db.registrations)
-                .find(([w, it]) => it === key && jidNum(w) !== jidNum(sid));
-            if (clash) {
-                await reply(withFooter([
-                    `⚠️ *Registration Conflict*`,
-                    ``,
-                    `*${key}* is already registered to a different WhatsApp number.`,
-                    `If this is your account, contact admin to fix it.`,
-                    `📱 Support: 94772197530`,
-                ].join('\n')));
-                return;
-            }
-
-            const alreadyRegistered = db.registrations[sid] === key;
-
-            db.registrations[sid] = key;
-            db.students[key] = { ...data, whatsapp: sid, registeredAt: nowISO() };
-            saveDB();
-
-            // Ask for group join confirmation instead of auto-adding
-            const groupPrompt = await askGroupJoinConfirmation(sid, data, key);
-
-            await reply(
-                withFooter(
-                    (alreadyRegistered ? `🔄 *Re-registered Successfully!*` : `🎉 *Registration Complete!*`) +
-                    `\n\n` + fmtStudent(key, data) + groupPrompt +
-                    `\n\n💡 Send *HELP* to see all available commands.`
-                )
-            );
-            return;
-        }
-
-        // ── INFO ──────────────────────────────────────────────────────────────
-        if (cmd === 'INFO') {
-            if (!arg1) {
-                await reply(withFooter([
-                    `❌ *Missing Student ID*`,
-                    ``,
-                    `📝 Usage: *INFO IT26XXXXXX*`,
-                    `Example:  INFO IT26101700`,
-                ].join('\n')));
-                return;
-            }
-            const { key, data } = lookupStudent(arg1);
-            if (!data) {
-                await reply(withFooter(`❌ *${key}* not found in the database.`));
-                return;
-            }
-            let txt = fmtStudent(key, data);
-            if (isAdmin(sid) && db.students[key]?.whatsapp) {
-                txt += `\n📱 *WhatsApp:* ${jidNum(db.students[key].whatsapp)}`;
-                txt += `\n🕒 *Registered:* ${db.students[key].registeredAt?.slice(0,10) || 'N/A'}`;
-                if (db.students[key].addedBy) txt += `\n🛡️  *Added By:*  ${db.students[key].addedBy}`;
-            }
-            await reply(withFooter(txt));
-            return;
-        }
-
-        // ── MYINFO ────────────────────────────────────────────────────────────
-        if (cmd === 'MYINFO') {
-            const reg = db.registrations[sid];
-            if (!reg) {
-                await reply(withFooter([
-                    `⚠️ *Not Registered Yet*`,
-                    ``,
-                    `To register, send:`,
-                    `*REG IT26XXXXXX*`,
-                    ``,
-                    `Replace IT26XXXXXX with your IT number.`,
-                ].join('\n')));
-                return;
-            }
-            const info = STUDENTS[reg];
-            if (!info) { await reply(withFooter(`❌ Student data error. Contact admin.`)); return; }
-            const slHour = new Date(Date.now() + 5.5 * 3600000).getUTCHours();
-            const timeGreet = slHour < 12 ? '🌅 Good morning' : slHour < 17 ? '☀️ Good afternoon' : '🌙 Good evening';
-            const firstName = info.name.split(' ')[0];
-            const regDate = db.students[reg]?.registeredAt?.slice(0,10) || 'N/A';
-            await reply(withFooter([
-                `${timeGreet}, *${firstName}!* 👋`,
-                ``,
-                fmtStudent(reg, info),
-                ``,
-                `📅 *Registered:* ${regDate}`,
-                ``,
-                `💡 Try: *TODAY* · *NEXT* · *CLASSMATES*`,
-            ].join('\n')));
-            return;
-        }
-
-        // ── MYGROUPS ──────────────────────────────────────────────────────────
-        if (cmd === 'MYGROUPS') {
-            const reg = db.registrations[sid];
-            if (!reg) {
-                await reply(withFooter(`⚠️ *Not Registered*\n\nSend *REG IT26XXXXXX* to register first.`));
+                    ? `❌ *${prov.name} සේවාව ලබා ගත නොහැක.*\n\n*SETAI llama* ලෙස වෙනස් කරන්න.`
+                    : `❌ *${prov.name} unavailable.*\n\nTry: *SETAI llama* / *SETAI gemini* / *SETAI deepseek* to register first.`));
                 return;
             }
             const s    = STUDENTS[reg];
