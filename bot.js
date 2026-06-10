@@ -17,17 +17,19 @@ const SUPER_ADMIN = process.env.SUPER_ADMIN || '94772197530';
 const SUPER_ADMIN_LIDS = ['20985227042855'];
 
 
-async function callGroq(model, question, sys) {
+async function callGroq(model, question, sys, history) {
     const key = process.env.GROQ_API_KEY || '';
     if (!key) throw new Error('No Groq key');
+    const messages = [{ role: 'system', content: sys }];
+    if (history && history.length > 0) {
+        messages.push(...history.slice(-6));
+    } else {
+        messages.push({ role: 'user', content: question });
+    }
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {'Content-Type':'application/json','Authorization':'Bearer '+key},
-        body: JSON.stringify({
-            model: model,
-            max_tokens: 600,
-            messages: [{role:'system',content:sys},{role:'user',content:question}]
-        })
+        body: JSON.stringify({ model, max_tokens: 600, messages })
     });
     const d = await r.json();
     if (d.error) throw new Error(d.error.message||JSON.stringify(d.error));
@@ -90,6 +92,14 @@ const store = { contacts: {}, loadMessage: async () => null, bind: () => {} };
 
 // LID → phone JID map, populated from contacts.upsert events
 const lidToPhone = new Map();
+const aiConversations = new Map();
+const AI_SESSION_TIMEOUT = 30 * 60 * 1000;
+setInterval(() => {
+    const now = Date.now();
+    for (const [jid, s] of aiConversations) {
+        if (now - s.lastActivity > AI_SESSION_TIMEOUT) aiConversations.delete(jid);
+    }
+}, 10 * 60 * 1000);
 
 /**
  * Resolve a @lid JID to its real @s.whatsapp.net phone JID.
@@ -952,6 +962,9 @@ async function handleMessage(rawMsg) {
             msg.message?.listResponseMessage?.title || '';
 
         if (!body || !body.trim()) return;
+        const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const quotedText = quotedMsg?.conversation || quotedMsg?.extendedTextMessage?.text || '';
+        const isReplyToAI = quotedText.includes('Assistant') || quotedText.includes('Answer:') || quotedText.includes('සහායක') || quotedText.includes('Turn ');
 
         const ts = Number(msg.messageTimestamp) * 1000;
         if (Date.now() - ts > 600000) return;  // skip messages older than 10 min (covers Railway deploy time)
@@ -974,6 +987,9 @@ async function handleMessage(rawMsg) {
 }
 
 async function processMessage(jid, msg, body) {
+        const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const quotedText = quotedMsg?.conversation || quotedMsg?.extendedTextMessage?.text || '';
+        const isReplyToAI = quotedText.includes('Answer:') || quotedText.includes('Turn') || quotedText.includes('Assistant') || quotedText.includes('සහායක');
     try {
         const sid = jid;
         // reply — Lane A (direct, instant, retries 3x)
@@ -996,6 +1012,59 @@ async function processMessage(jid, msg, body) {
         console.log(`📨 ${jidNum(jid)} → ${body.trim().slice(0, 80)}`);
 
         if (isBanned(sid)) { console.log(`🚫 Banned user: ${jidNum(sid)}`); return; }
+
+        // ── ENDCHAT ───────────────────────────────────────────────────────
+        if (body.trim().toUpperCase() === 'ENDCHAT') {
+            const lang = getLang(sid);
+            if (aiConversations.has(sid)) {
+                const turns = Math.floor((aiConversations.get(sid).history?.length||0)/2);
+                aiConversations.delete(sid);
+                await reply(withFooter(lang==='si'
+                    ? `✅ *AI සංවාදය අවසන්!*
+📊 ප්‍රශ්න ${turns}ක් .
+නව: *ASK <ප්‍රශ්නය>*`
+                    : `✅ *AI chat ended!*
+📊 ${turns} question(s) asked.
+New session: *ASK <question>*`
+                ));
+            } else {
+                await reply(withFooter(lang==='si' ? '⚠️ සක්‍රිය AI සංවාදයක් නොමැත.' : '⚠️ No active AI session.'));
+            }
+            return;
+        }
+
+        // ── AI REPLY CONTINUATION ─────────────────────────────────────────────
+        if (isReplyToAI && body.trim() && cmd !== 'ASK' && cmd !== 'SETAI' && cmd !== 'ENDCHAT') {
+            const lang = getLang(sid);
+            const session = aiConversations.get(sid);
+            const question = body.trim();
+            const reg = db.registrations[sid];
+            const stuName = reg ? STUDENTS[reg]?.name?.split(' ')[0] : 'Student';
+            const provKey = session?.providerKey || getAIProvider(sid);
+            const prov = AI_PROVIDERS[provKey];
+            const history = session?.history || [];
+            history.push({ role: 'user', content: question });
+            await reply(withFooter(`⏳ *${prov.emoji} ${prov.name} is thinking...*`));
+            try {
+                const sys = `You are a helpful academic assistant for SLIIT Year 1 Semester 1 students. Student: ${stuName}. Keep answers clear under 350 words. Use backticks for code. Reply in Sinhala if asked in Sinhala.`;
+                const answer = await prov.call(question, sys, history.slice(-6));
+                history.push({ role: 'assistant', content: answer });
+                aiConversations.set(sid, { history: history.slice(-10), lastActivity: Date.now(), providerKey: provKey });
+                const turn = Math.floor(history.length/2);
+                await reply(withFooter(`${prov.emoji} *${prov.name}* (Turn ${turn})
+
+❓ *${question}*
+
+💡 *Answer:*
+${answer}
+
+_💬 Reply to continue | *ENDCHAT* to end_`));
+            } catch(e) {
+                console.error('AI reply error:', e.message);
+                await reply(withFooter(`❌ *${prov.name} unavailable.* Try *SETAI llama*`));
+            }
+            return;
+        }
 
         // ── YES/NO: Group join confirmation ────────────────────────────────────
         if (cmd === 'YES' || cmd === 'NO' || cmd === 'Y' || cmd === 'N') {
@@ -1034,118 +1103,254 @@ async function processMessage(jid, msg, body) {
             let lines;
             if (lang === 'si') {
                 lines = [
-                    `╔═══════════════════════════╗`,
-                    `  🤖 *SLIIT Y1S1 සහායක*`,
-                    `╚═══════════════════════════╝`,
+                    `╔══════════════════════════════╗`,
+                    `  🎓 *SLIIT Y1S1 Assistant Bot*`,
+                    `╚══════════════════════════════╝`,
                     ``,
-                    greet,
-                    greeting,
-                    ``,
+                    greet, greeting, ``,
                     `💬 _${quote}_`,
                     ``,
-                    `━━━━ 📌 *ආරම්භ කරන්න* ━━━━`,
+                    `━━━━ 📌 *Registration* ━━━━`,
                     ``,
                     `*REG IT26XXXXXX*`,
-                    `  ඔබේ SLIIT IT අංකය යොදා ලියාපදිංචි වන්න`,
-                    `  ඔබේ profile සහ group link ලබාගන්න`,
-                    ``,
-                    `━━━━ 👤 *මගේ Profile* ━━━━`,
-                    ``,
-                    `*MYINFO*      ඔබේ student profile බලන්න`,
-                    `*MYGROUPS*    කාල සටහන සහ project group`,
-                    `*MYLINK*      WhatsApp group invite link`,
-                    `*CLASSMATES*  ඔබේ group එකේ සිටිනා අය`,
-                    `*JOINGROUP WD01*  ඕනෑම group link`,
-                    ``,
-                    `━━━━ 📅 *කාල සටහන* ━━━━`,
-                    ``,
-                    `*TODAY*      අදට ඇති classes`,
-                    `*TOMORROW*   හෙටට ඇති classes`,
-                    `*NEXT*       ඊළඟ class එක`,
-                    `*WEEK*       සතිය overview`,
-                    `*TT Friday*  දිනය අනුව class`,
-                    ``,
-                    `━━━━ 🔍 *සෙවීම* ━━━━`,
-                    ``,
-                    `*INFO IT26XXXXXX*  ශිෂ්‍යයෙකුගේ details`,
-                    `*SEARCH <නම>*      නමෙන් සෙවීම`,
-                    ``,
-                    `━━━━ 🤖 *AI සහායක* ━━━━`,
-                    ``,
-                    `*ASK <ප්‍රශ්නය>*  AI සහායකෙන් ප්‍රශ්නය අසන්න`,
-                    `  උදා: ASK What is a database?`,
-                    `  උදා: ASK Explain OOP in simple terms`,
-                    ``,
-                    `━━━━ 🌐 *භාෂාව* ━━━━`,
-                    ``,
-                    `*LANG EN*   Switch to English`,
-                    `*LANG SI*   සිංහල (දැනට)`,
-                    ``,
-                    `━━━━ ℹ️ *ගැන* ━━━━`,
-                    ``,
-                    `📞 SLIIT Help Center: +94 11 754 4801`,
-                    ``,
-                    `⚠️ _මෙම bot එක SLIIT ආයතනය සමඟ සම්බන්ධ නොවේ_`,
-                ];
-            } else {
-                lines = [
-                    `╔═══════════════════════════╗`,
-                    `  🤖 *SLIIT Y1S1 Assistant*`,
-                    `╚═══════════════════════════╝`,
-                    ``,
-                    greet,
-                    greeting,
-                    ``,
-                    `💬 _${quote}_`,
-                    ``,
-                    `━━━━ 📌 *Start Here* ━━━━`,
-                    ``,
-                    `*REG IT26XXXXXX*`,
-                    `  Register using your SLIIT IT number`,
-                    `  to unlock your profile & group link`,
+                    `  Register with your SLIIT IT number`,
                     ``,
                     `━━━━ 👤 *My Profile* ━━━━`,
                     ``,
-                    `*MYINFO*      View your student profile`,
-                    `*MYGROUPS*    Your timetable & project group`,
-                    `*MYLINK*      Get your WhatsApp group link`,
-                    `*CLASSMATES*  See who's in your project group`,
-                    `*JOINGROUP WD01*  Get any group's invite link`,
+                    `*MYINFO*          📋 Your student profile`,
+                    `*MYGROUPS*        📊 Timetable & group info`,
+                    `*MYLINK*          🔗 Your WhatsApp group link`,
+                    `*CLASSMATES*      👥 See your groupmates`,
+                    `*JOINGROUP WD01*  🏘️ Get any group link`,
                     ``,
                     `━━━━ 📅 *Timetable* ━━━━`,
                     ``,
-                    `*TODAY*      Today's class schedule`,
-                    `*TOMORROW*   Tomorrow's classes`,
-                    `*NEXT*       Your next upcoming class`,
-                    `*WEEK*       Full weekly timetable`,
-                    `*TT Friday*  Timetable for a specific day`,
+                    `*TODAY*      📆 Today's schedule`,
+                    `*TOMORROW*   📆 Tomorrow's classes`,
+                    `*NEXT*       ⏰ Next class now`,
+                    `*WEEK*       📋 Full weekly view`,
+                    `*TT Friday*  📅 Day-specific timetable`,
                     ``,
                     `━━━━ 🔍 *Search* ━━━━`,
                     ``,
-                    `*INFO IT26XXXXXX*  Look up any student`,
-                    `*SEARCH <name>*    Search students by name`,
+                    `*INFO IT26XXXXXX*  🔍 Any student's info`,
+                    `*SEARCH <name>*    🔎 Search by name`,
                     ``,
                     `━━━━ 🤖 *AI Assistant* ━━━━`,
                     ``,
-                    `━━━━ 🤖 *AI Assistant* ━━━━`,
-                    `  e.g. ASK What is a database?`,
-                    `  e.g. ASK Explain OOP in simple terms`,
-                    `  e.g. ASK Help me understand recursion`,
+                    `*ASK <question>*  🧠 Ask AI anything!`,
+                    `  💬 Reply to AI message to continue chat`,
+                    `  e.g. ASK What is OOP?`,
+                    `*SETAI llama*     🦙 Llama 3.3 70B (default)`,
+                    `*SETAI gemini*    🟦 Google Gemma 2`,
+                    `*SETAI mistral*   ⚡ Mistral Saba`,
+                    `*SETAI deepseek*  🔬 DeepSeek R1`,
+                    `*QUOTE*           💬 Motivational quote`,
+                    `*ENDCHAT*         🔚 End AI session`,
+                    ``,
+                    `━━━━ 🎨 *Creative Tools* ━━━━`,
+                    ``,
+                    `*IMAGE <description>*  🖼️ Generate AI image`,
+                    `  e.g. IMAGE futuristic SLIIT campus`,
+                    `*SLIDES <topic>*       📊 AI presentation`,
+                    `  e.g. SLIDES Intro to OOP`,
+                    `*VIDEO <topic>*        🎬 Find tutorials`,
+                    `  e.g. VIDEO database normalization`,
                     ``,
                     `━━━━ 🌐 *Language* ━━━━`,
                     ``,
-                    `*LANG SI*   Switch to Sinhala / සිංහල`,
-                    `*LANG EN*   English (current)`,
+                    `*LANG SI*  🇱🇰 Sinhala`,
+                    `*LANG EN*  🇬🇧 English (current)`,
                     ``,
                     `━━━━ ℹ️ *About* ━━━━`,
                     ``,
-                    `📞 *SLIIT Help Center:* +94 11 754 4801`,
+                    `📞 SLIIT Help: *+94 11 754 4801*`,
+                    `⚠️ _Not associated with SLIIT operations_`,
+                ];
+            } else {
+                lines = [
+                    `╔════════════════════════════╗`,
+                    `  🎓 *SLIIT Y1S1 Assistant Bot*`,
+                    `╚════════════════════════════╝`,
                     ``,
-                    `⚠️ _This bot is not associated with SLIIT operations_`,
+                    greet, greeting, ``,
+                    `💬 _${quote}_`,
+                    ``,
+                    `━━━━ 📌 *Registration* ━━━━`,``,
+                    `*REG IT26XXXXXX*`,
+                    `  Register with your SLIIT IT number`,
+                    ``,
+                    `━━━━ 👤 *My Profile* ━━━━`,``,
+                    `*MYINFO*          📋 Your student profile`,
+                    `*MYGROUPS*        📊 Timetable & group info`,
+                    `*MYLINK*          🔗 Your WhatsApp group link`,
+                    `*CLASSMATES*      👥 See your groupmates`,
+                    `*JOINGROUP WD01*  🏘️ Get any group link`,
+                    ``,
+                    `━━━━ 📅 *Timetable* ━━━━`,``,
+                    `*TODAY*      📆 Today's schedule`,
+                    `*TOMORROW*   📆 Tomorrow's classes`,
+                    `*NEXT*       ⏰ Next class now`,
+                    `*WEEK*       📋 Full weekly view`,
+                    `*TT Friday*  📅 Day-specific timetable`,
+                    ``,
+                    `━━━━ 🔍 *Search* ━━━━`,``,
+                    `*INFO IT26XXXXXX*  🔍 Any student info`,
+                    `*SEARCH <name>*    🔎 Search by name`,
+                    ``,
+                    `━━━━ 🤖 *AI Assistant* ━━━━`,``,
+                    `  💬 Reply to continue the chat`,
+                    `*SETAI llama*     🦙 Llama 3.3 70B`,
+                    `*SETAI gemini*    🟦 Google Gemma 2`,
+                    `*SETAI mistral*   ⚡ Mistral Saba`,
+                    `*SETAI deepseek*  🔬 DeepSeek R1`,
+                    `*QUOTE*           💬 Motivational quote`,
+                    `*ENDCHAT*         🔚 End AI session`,
+                    ``,
+                    `━━━━ 🎨 *Creative Tools* ━━━━`,``,
+                    `*IMAGE <description>*  🖼️ AI image`,
+                    `*SLIDES <topic>*       📊 AI presentation`,
+                    `*VIDEO <topic>*        🎬 Find tutorials`,
+                    ``,
+                    `━━━━ 🌐 *Language* ━━━━`,``,
+                    `*LANG SI*  🇱🇰 Sinhala`,
+                    `*LANG EN*  🇬🇧 English (current)`,
+                    ``,
+                    `━━━━ ℹ️ *About* ━━━━`,``,
+                    `📞 SLIIT Help: *+94 11 754 4801*`,
+                    `⚠️ _Not associated with SLIIT operations_`,
                 ];
             }
-            if (isAdmin(sid)) lines.push(``, `🛡️ *${lang==='si'?'Admin:':'Admin:'} Send *ADMINHELP* for admin commands.`);
+            if (isAdmin(sid)) lines.push(``, `🛡️ *Admin:* Send *ADMINHELP* for admin commands.`);
             await reply(withFooter(lines.join('\n')));
+            return;
+        }
+
+        // ── IMAGE — AI image generation (Pollinations - free) ─────────────────
+        if (cmd === 'IMAGE' || cmd === 'IMG' || cmd === 'IMAGINE') {
+            const lang = getLang(sid);
+            const prompt = body.replace(/^(IMAGE|IMG|IMAGINE)\s*/i, '').trim();
+            if (!prompt) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Description එකක් දෙන්න!*\n\nඋදා: *IMAGE a beautiful sunset*'
+                    : '❌ *Include a description!*\n\nExample: *IMAGE a futuristic SLIIT campus*\nExample: *IMAGE a programmer at night*'
+                ));
+                return;
+            }
+            await reply(withFooter(lang==='si'
+                ? `⏳ *AI Image හදනවා...*\n\n"${prompt.slice(0,50)}"\n\nරැඳී සිටින්න! (10-20s)`
+                : `⏳ *Generating AI Image...*\n\n"${prompt.slice(0,50)}"\n\nPlease wait (10-20s)!`
+            ));
+            try {
+                const encodedPrompt = encodeURIComponent(prompt + ', high quality, detailed');
+                const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600&nologo=true&seed=${Date.now()}`;
+                const resp = await fetch(imageUrl, { signal: AbortSignal.timeout(25000) });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const buffer = Buffer.from(await resp.arrayBuffer());
+                if (buffer.length < 1000) throw new Error('Image too small');
+                await directSend(sid, {
+                    image: buffer,
+                    caption: withFooter(lang==='si'
+                        ? `🎨 *AI Generated Image*\n\n📝 "${prompt}"\n\n_නව image: IMAGE <description>_`
+                        : `🎨 *AI Generated Image*\n\n📝 "${prompt}"\n\n_More: IMAGE <description>_`
+                    )
+                });
+            } catch(e) {
+                console.error('Image error:', e.message);
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Image generate නොහැකිය.*\n\nනැවත try කරන්න.'
+                    : '❌ *Could not generate image.*\n\nTry again with simpler description.'
+                ));
+            }
+            return;
+        }
+
+        // ── VIDEO — YouTube educational search ────────────────────────────────
+        if (cmd === 'VIDEO' || cmd === 'YOUTUBE' || cmd === 'YT') {
+            const lang = getLang(sid);
+            const query = body.replace(/^(VIDEO|YOUTUBE|YT)\s*/i, '').trim();
+            if (!query) {
+                await reply(withFooter('❌ Include a topic!\n\nExample: *VIDEO OOP in Java*\nExample: *VIDEO Database normalization*'));
+                return;
+            }
+            const ytSearch = encodeURIComponent(query + ' tutorial');
+            await reply(withFooter([
+                `🎬 *Educational Videos*`,
+                ``,
+                `📚 Topic: *${query}*`,
+                ``,
+                `🔗 Watch on YouTube:`,
+                `https://www.youtube.com/results?search_query=${ytSearch}`,
+                ``,
+                `💡 Also try:`,
+                `• ${query} for beginners`,
+                `• ${query} explained simply`,
+                `• ${query} crash course`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── SLIDES — AI presentation maker ────────────────────────────────────
+        if (cmd === 'SLIDES' || cmd === 'PPT' || cmd === 'PRESENTATION') {
+            const lang = getLang(sid);
+            const topic = body.replace(/^(SLIDES|PPT|PRESENTATION)\s*/i, '').trim();
+            if (!topic) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ Topic එකක් දෙන්න!\n\nඋදා: *SLIDES Introduction to OOP*'
+                    : '❌ Include a topic!\n\nExample: *SLIDES Introduction to OOP*\nExample: *SLIDES Cloud Computing*'
+                ));
+                return;
+            }
+            const provKey = getAIProvider(sid);
+            const prov = AI_PROVIDERS[provKey];
+            await reply(withFooter(`⏳ *${prov.emoji} Creating presentation...*\n\nTopic: "${topic.slice(0,50)}"`));
+            try {
+                const reg = db.registrations[sid];
+                const stuName = reg ? STUDENTS[reg]?.name?.split(' ')[0] : 'Student';
+                const sys = 'You are an expert presentation creator for university students.';
+                const prompt = `Create a detailed slide-by-slide presentation for SLIIT Year 1 student "${stuName}" on: "${topic}"
+
+Use this EXACT format for each slide:
+
+📑 SLIDE 1 — TITLE
+- Main Title: [title]
+- Subtitle: [subtitle]
+- Hook: [one interesting fact]
+
+📑 SLIDE 2 — AGENDA
+- Point 1
+- Point 2
+- Point 3
+- Point 4
+
+📑 SLIDE 3 — [topic]
+- Key point 1
+- Key point 2
+- Key point 3
+🗣️ Speaker note: [what to say]
+
+[Continue for 5-7 more slides]
+
+📑 FINAL SLIDE — THANK YOU
+- Summary: [3 key takeaways]
+- Contact: [student name]
+- Q&A
+
+Keep bullets under 8 words each. Make it professional.`;
+                const answer = await prov.call(prompt, sys, []);
+                if (answer.length > 3800) {
+                    const mid = answer.lastIndexOf('📑', Math.floor(answer.length/2));
+                    const splitAt = mid > 100 ? mid : Math.floor(answer.length/2);
+                    await reply(withFooter(`📊 *AI Presentation (Part 1)*\n\n${answer.slice(0, splitAt)}`));
+                    await sleep(1200);
+                    await reply(withFooter(`📊 *AI Presentation (Part 2)*\n\n${answer.slice(splitAt)}\n\n_💡 Copy to Google Slides or PowerPoint!_`));
+                } else {
+                    await reply(withFooter(`📊 *AI Presentation*\n\n${answer}\n\n_💡 Copy to Google Slides or PowerPoint!_`));
+                }
+            } catch(e) {
+                console.error('Slides error:', e.message);
+                await reply(withFooter('❌ Could not create presentation. Try again.'));
+            }
             return;
         }
 
@@ -1200,14 +1405,14 @@ async function processMessage(jid, msg, body) {
             return;
         }
 
-        // ── ASK — Multi-AI assistant ──────────────────────────────────────────
+        // ── ASK — AI with conversation memory ───────────────────────────────────
         if (cmd === 'ASK' || cmd === 'AI') {
             const lang = getLang(sid);
             const question = body.replace(/^(ASK|AI)\s*/i, '').trim();
             if (!question) {
                 await reply(withFooter(lang==='si'
-                    ? '❌ *ප්‍රශ්නයක් යවන්න!*\n\nඋදා: *ASK What is a database?*\n\nAI මාරු කිරීමට: *SETAI gemini*'
-                    : '❌ *Please include your question!*\n\nExample: *ASK What is a database?*\n\nChange AI: *SETAI gemini* / *SETAI llama*'
+                    ? '❌ ප්‍රශ්නයක් යවන්න!\n\nඋදා: *ASK What is OOP?*'
+                    : '❌ Include your question!\n\nExample: *ASK What is OOP?*\nSwitch AI: *SETAI llama*'
                 ));
                 return;
             }
@@ -1215,48 +1420,34 @@ async function processMessage(jid, msg, body) {
             const stuName = reg ? STUDENTS[reg]?.name?.split(' ')[0] : 'Student';
             const provKey = getAIProvider(sid);
             const prov = AI_PROVIDERS[provKey];
+            const session = aiConversations.get(sid) || { history: [], lastActivity: Date.now(), providerKey: provKey };
+            session.history.push({ role: 'user', content: question });
+            session.lastActivity = Date.now();
+            session.providerKey = provKey;
             await reply(withFooter(lang==='si'
-                ? `⏳ *${prov.emoji} ${prov.name} සිතනවා...*\n\n"${question.slice(0,50)}" ගැන`
-                : `⏳ *${prov.emoji} ${prov.name} is thinking...*\n\nLooking into: "${question.slice(0,50)}"`
+                ? `⏳ *${prov.emoji} ${prov.name} සිතනවා...*`
+                : `⏳ *${prov.emoji} ${prov.name} is thinking...*`
             ));
             try {
-                const sys = `You are a helpful academic assistant for SLIIT Year 1 Semester 1 students. Student name: ${stuName}. Answer questions about programming, databases, maths, IT concepts. Keep answers clear and concise under 350 words. Format code with backticks. If the question is in Sinhala, reply in Sinhala.`;
-                const answer = await prov.call(question, sys);
+                const sys = `You are a helpful academic assistant for SLIIT Year 1 Semester 1 students. Student: ${stuName}. Answer questions about programming, databases, maths, IT concepts. Keep answers clear under 350 words. Format code with backticks. Reply in Sinhala if asked in Sinhala.`;
+                const answer = await prov.call(question, sys, session.history.slice(-8));
+                session.history.push({ role: 'assistant', content: answer });
+                aiConversations.set(sid, { ...session, history: session.history.slice(-10) });
+                const turn = Math.floor(session.history.length/2);
                 const header = lang==='si'
-                    ? `${prov.emoji} *${prov.name} සහායක*\n\n❓ *ප්‍රශ්නය:* ${question}\n\n💡 *පිළිතුර:*\n`
-                    : `${prov.emoji} *${prov.name} Assistant*\n\n❓ *Question:* ${question}\n\n💡 *Answer:*\n`;
+                    ? `${prov.emoji} *${prov.name} සහායක* (Turn ${turn})\n\n❓ *${question}*\n\n💡 *පිළිතුර:*\n`
+                    : `${prov.emoji} *${prov.name} Assistant* (Turn ${turn})\n\n❓ *${question}*\n\n💡 *Answer:*\n`;
                 const foot = lang==='si'
-                    ? `\n\n_AI මාරු කිරීමට *SETAI gemini* හෝ *SETAI llama*_`
-                    : `\n\n_Change AI: *SETAI gemini* / *SETAI llama*_`;
+                    ? `\n\n_💬 Reply to continue | *ENDCHAT* end_`
+                    : `\n\n_💬 *Reply* to continue the chat | *ENDCHAT* to end_`;
                 await reply(withFooter(header + answer + foot));
             } catch(e) {
-                console.error('❌ AI error:', e.message);
+                console.error('AI error:', e.message);
                 await reply(withFooter(lang==='si'
-                    ? `❌ *${prov.name} සේවාව ලබා ගත නොහැක.*\n\n*SETAI llama* ලෙස වෙනස් කරන්න.`
-                    : `❌ *${prov.name} unavailable.*\n\nTry: *SETAI llama* / *SETAI gemini* / *SETAI deepseek* to register first.`));
-                return;
+                    ? `❌ *${prov.name} ලබා ගත නොහැක.* *SETAI llama* try.`
+                    : `❌ *${prov.name} unavailable.* Try: *SETAI llama*`
+                ));
             }
-            const s    = STUDENTS[reg];
-            if (!s) { await reply(withFooter(`❌ Student data error. Contact admin.`)); return; }
-            const pg   = s.project_group;
-            const slot = db.students[reg]?.wa_group_slot || pg;
-            const wg   = db.waGroups[slot];
-            const memberCount = wg ? registeredCountInSlot(slot) : 0;
-            const isWE = s.timetable_group.includes('WE');
-            await reply(withFooter([
-                `╔══════════════════════════╗`,
-                `  📊 *My Groups – ${reg}*`,
-                `╚══════════════════════════╝`,
-                ``,
-                `🗓️  *Schedule:*   ${isWE ? '🌅 Weekend' : '📆 Weekday'}`,
-                `📚 *TT Group:*   ${s.timetable_group}`,
-                `📌 *Sub-Group:*  ${s.sub_group}`,
-                `🔢 *Project:*    ${pg}`,
-                ``,
-                wg
-                    ? `🏘️  *WA Group:*   ${slot}\n👥 *Members:*   ${memberCount}/${MAX_STUDENTS_PER_GROUP}\n🔗 ${wg.inviteLink || '(link unavailable)'}`
-                    : `⚠️  *WA Group:*   Not created yet\nSend *REG ${reg}* to trigger creation`,
-            ].join('\n')));
             return;
         }
 
