@@ -15,405 +15,6 @@ const PORT        = process.env.PORT || 8080;
 // Your number — plain digits, no @s.whatsapp.net
 const SUPER_ADMIN = process.env.SUPER_ADMIN || '94772197530';
 const SUPER_ADMIN_LIDS = ['20985227042855'];
-
-
-async function callGroq(model, question, sys, history) {
-    const key = process.env.GROQ_API_KEY || '';
-    if (!key) throw new Error('No Groq key');
-    const messages = [{ role: 'system', content: sys }];
-    if (history && history.length > 0) {
-        messages.push(...history.slice(-6));
-    } else {
-        messages.push({ role: 'user', content: question });
-    }
-    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json','Authorization':'Bearer '+key},
-        body: JSON.stringify({ model, max_tokens: 600, messages })
-    });
-    const d = await r.json();
-    if (d.error) throw new Error(d.error.message||JSON.stringify(d.error));
-    return d?.choices?.[0]?.message?.content || 'No answer.';
-}
-
-const AI_PROVIDERS = {
-    gemini: { name: 'Google Gemma 2', emoji: '🟦', call: async (q,s) => callGroq('llama-3.1-8b-instant', q, s) },
-    llama:  { name: 'Llama 3.3 70B',  emoji: '🦙', call: async (q,s) => callGroq('llama-3.3-70b-versatile', q, s) },
-    mistral:{ name: 'Mistral Saba',   emoji: '⚡', call: async (q,s) => callGroq('mistral-saba-24b', q, s) },
-    deepseek:{ name: 'DeepSeek R1',   emoji: '🔬', call: async (q,s) => callGroq('deepseek-r1-distill-llama-70b', q, s) }
-};
-function getAIProvider(jid) {
-    const p = db.aiProvider && db.aiProvider[jid];
-    if (p && AI_PROVIDERS[p]) return p;
-    return 'llama';
-} // LID fallback for super admin
-
-// Bot credit shown at the bottom of every reply
-const BOT_FOOTER = [
-    ``,
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `🤖 *Created by Poojana Kaveesh*`,
-    `🆔 IT26101524  |  📱 94772197530`,
-].join('\n');
-
-// ─── LOAD STUDENTS DATA ───────────────────────────────────────────────────────
-let STUDENTS = {};
-try {
-    STUDENTS = require('./students.json');
-    console.log(`📚 Students loaded: ${Object.keys(STUDENTS).length}`);
-} catch(e) {
-    console.error('❌ students.json not found:', e.message);
-}
-
-// ─── LOAD TIMETABLE DATA ──────────────────────────────────────────────────────
-let TIMETABLE = {};
-try {
-    TIMETABLE = require('./timetable.json');
-    console.log(`📅 Timetable loaded: ${Object.keys(TIMETABLE).length} groups`);
-} catch(e) {
-    console.warn('⚠️  timetable.json not found — TIMETABLE command will be unavailable');
-}
-
-// ─── STATE ────────────────────────────────────────────────────────────────────
-let latestQR  = null;
-let botReady  = false;
-let botStatus = 'starting';
-let sock      = null;
-let reconnectAttempts = 0;
-let qrAttempts        = 0;
-let sessionStableAt  = 0;   // timestamp when session is considered stable
-let DATA_PATH = '/tmp/botdata';
-let AUTH_PATH = '/tmp/botdata/auth';
-let DB_PATH   = '/tmp/botdata/database.json';
-
-// ─── STORE STUB + LID RESOLUTION ─────────────────────────────────────────────
-// makeInMemoryStore removed in newer Baileys — use a lightweight stub.
-const store = { contacts: {}, loadMessage: async () => null, bind: () => {} };
-
-// LID → phone JID map, populated from contacts.upsert events
-const lidToPhone = new Map();
-const aiConversations = new Map();
-const AI_SESSION_TIMEOUT = 30 * 60 * 1000;
-setInterval(() => {
-    const now = Date.now();
-    for (const [jid, s] of aiConversations) {
-        if (now - s.lastActivity > AI_SESSION_TIMEOUT) aiConversations.delete(jid);
-    }
-}, 10 * 60 * 1000);
-
-/**
- * Resolve a @lid JID to its real @s.whatsapp.net phone JID.
- * WhatsApp now uses @lid JIDs in some regions — we map them on contacts sync.
- * Falls back to replying directly to the @lid JID, which WhatsApp also accepts.
- */
-async function resolveLID(jid) {
-    if (!jid) return jid;
-    if (!jid.endsWith('@lid')) return jid;
-
-    // 1. Check our LID→phone map (built from contacts.upsert)
-    if (lidToPhone.has(jid)) {
-        const phone = lidToPhone.get(jid);
-        console.log(`🔁 LID resolved: ${jid} → ${phone}`);
-        return phone;
-    }
-
-    // 2. Try jidNormalizedUser
-    try {
-        const normalized = jidNormalizedUser(jid);
-        if (normalized && !normalized.endsWith('@lid')) {
-            console.log(`🔁 LID normalized: ${jid} → ${normalized}`);
-            lidToPhone.set(jid, normalized); // cache it
-            return normalized;
-        }
-    } catch(_) {}
-
-    // 3. Reply directly to @lid — WhatsApp accepts it
-    console.warn(`⚠️  LID unresolved: ${jid} — replying to LID directly`);
-    return jid;
-}
-
-// Message deduplication: track recently processed message IDs
-// Map of msgId → expiry timestamp; swept every 30s (no per-message timers)
-const processedMsgIds = new Map();
-const DEDUP_TTL = 60000; // 60s
-setInterval(() => {
-    const now = Date.now();
-    for (const [id, exp] of processedMsgIds) {
-        if (now > exp) processedMsgIds.delete(id);
-    }
-}, 30000);
-
-// ─── TWO-LANE SEND SYSTEM ────────────────────────────────────────────────────
-//
-//  LANE A — Direct replies (priority):
-//    • Bypasses the broadcast queue entirely
-//    • Sends immediately with up to 3 retries and 1s backoff
-//    • Used for all user/admin replies
-//
-//  LANE B — Broadcast queue (background):
-//    • Processes bulk sends at safe rate (800ms/msg)
-//    • Never blocks Lane A
-//
-// This means your personal replies are ALWAYS instant, even during a broadcast.
-
-/**
- * Lane A: direct send with retry. Used for all replies.
- * Never queued — sends immediately.
- */
-async function directSend(jid, content, retries = 4) {
-    if (!sock) {
-        console.error(`❌ directSend: sock is null — bot not connected`);
-        throw new Error('sock is null');
-    }
-    // Wait if session just reconnected (crypto handshake needs time)
-    const msSinceStable = Date.now() - sessionStableAt;
-    if (msSinceStable < 3000 && msSinceStable >= 0) {
-        await sleep(3000 - msSinceStable);
-    }
-    for (let attempt = 0; attempt <= retries; attempt++) {
-        try {
-            return await throttledSend(jid, content);
-        } catch(e) {
-            const isLast = attempt === retries;
-            if (isLast) {
-                console.error(`❌ directSend failed after ${retries} retries to ${jidNum(jid)}: ${e.message}`);
-                throw e;
-            }
-            // Exponential backoff: 1s, 2s, 4s, 8s
-            const backoff = 1000 * Math.pow(2, attempt);
-            console.warn(`⚠️  directSend attempt ${attempt + 1} failed: ${e.message} — retrying in ${backoff/1000}s`);
-            await sleep(backoff);
-        }
-    }
-}
-
-/**
- * Lane B: broadcast queue. Low-priority bulk sends.
- */
-const broadcastQueue = [];
-let broadcastRunning = false;
-
-function enqueueBroadcast(jid, content) {
-    return new Promise((resolve, reject) => {
-        broadcastQueue.push({ jid, content, resolve, reject, retries: 0 });
-        if (!broadcastRunning) runBroadcastQueue();
-    });
-}
-
-async function runBroadcastQueue() {
-    if (broadcastRunning) return;
-    broadcastRunning = true;
-    while (broadcastQueue.length > 0) {
-        const job = broadcastQueue.shift();
-        try {
-            const result = await sock.sendMessage(job.jid, job.content);
-            job.resolve(result);
-        } catch(e) {
-            if (job.retries < 3) {
-                job.retries++;
-                broadcastQueue.unshift(job);
-                // Exponential backoff: 5s, 10s, 20s between retries
-                await sleep(5000 * job.retries);
-            } else {
-                job.reject(e);
-            }
-        }
-        // 1200ms + jitter between broadcast sends — safe anti-ban rate
-        await sleep(1200 + Math.floor(Math.random() * 300));
-    }
-    broadcastRunning = false;
-}
-
-// ─── DATABASE SCHEMA ──────────────────────────────────────────────────────────
-let db = {
-    registrations: {},   // jid → "IT26XXXXXX"
-    students:      {},   // "IT26XXXXXX" → { ...data, whatsapp, registeredAt, wa_group_slot }
-    admins:        [],
-    banned:        [],
-    broadcasts:    [],
-    waGroups:      {},   // slot_key → { jid, inviteLink, name, createdAt }
-    projectGroups: {},   // project_group → { members: ["IT26XXXXXX", ...], addedBy, createdAt }
-};
-
-// ─── WEB SERVER ───────────────────────────────────────────────────────────────
-const app = express();
-
-app.get('/health', (_, res) =>
-    res.status(200).json({
-        status: botStatus,
-        ready: botReady,
-        registered: Object.keys(db.registrations).length,
-        groups: Object.keys(db.waGroups).length,
-    })
-);
-
-app.get('/', (_, res) => {
-    if (latestQR) {
-        qrcode.toDataURL(latestQR, (err, url) => {
-            if (err) return res.status(500).send('QR error');
-            res.send(`<!DOCTYPE html><html><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Scan QR – SLIIT Bot</title>
-<style>
-body{font-family:sans-serif;display:flex;flex-direction:column;align-items:center;
-justify-content:center;min-height:100vh;margin:0;background:#f0f2f5;padding:20px;box-sizing:border-box;}
-h1{color:#128C7E;margin-bottom:4px;}
-img{border:4px solid #128C7E;border-radius:8px;max-width:300px;width:100%;}
-p{color:#555;font-size:14px;text-align:center;}
-.divider{margin:20px 0;color:#aaa;font-size:13px;}
-.pair-box{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.1);text-align:center;max-width:320px;width:100%;}
-input{padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px;width:100%;box-sizing:border-box;margin:8px 0;}
-button{background:#128C7E;color:#fff;border:none;padding:12px 24px;border-radius:8px;font-size:15px;cursor:pointer;width:100%;}
-button:hover{background:#0f7167;}
-#result{margin-top:12px;font-size:15px;font-weight:bold;}
-small{color:#888}
-</style></head><body>
-<h1>📱 SLIIT Bot Login</h1>
-<div class="pair-box">
-  <p><b>Option 1: Scan QR</b><br>WhatsApp → Linked Devices → Link a Device</p>
-  <img src="${url}" alt="QR Code">
-  <p><small>Auto-refresh in 30s</small></p>
-  <script>setTimeout(()=>location.reload(),30000)</script>
-
-  <div class="divider">── OR ──</div>
-
-  <p><b>Option 2: Pair with Phone Number</b><br>Enter the bot's WhatsApp number:</p>
-  <input id="phone" type="tel" placeholder="e.g. 94761297530" value="">
-  <button onclick="pair()">Get Pairing Code</button>
-  <div id="result"></div>
-</div>
-<p><small>Created by Poojana Kaveesh | IT26101524</small></p>
-<script>
-async function pair() {
-  const phone = document.getElementById('phone').value.replace(/[^0-9]/g,'');
-  const res = document.getElementById('result');
-  if (!phone || phone.length < 7) { res.textContent = '❌ Enter a valid number'; res.style.color='red'; return; }
-  res.textContent = '⏳ Requesting code...'; res.style.color='#555';
-  try {
-    const r = await fetch('/pair?phone=' + phone);
-    const d = await r.json();
-    if (d.code) {
-      res.innerHTML = '✅ Your pairing code:<br><span style="font-size:28px;letter-spacing:4px;color:#128C7E">' + d.code + '</span><br><small>WhatsApp → Linked Devices → Link with Phone Number</small>';
-    } else {
-      res.textContent = '❌ ' + (d.error || 'Failed'); res.style.color='red';
-    }
-  } catch(e) { res.textContent = '❌ Request failed'; res.style.color='red'; }
-}
-</script>
-</body></html>`);
-        });
-    } else {
-        const slotCount = Object.keys(db.waGroups || {}).length;
-        res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>SLIIT Bot</title>
-<meta http-equiv="refresh" content="8">
-<style>body{font-family:sans-serif;text-align:center;padding:60px;background:#f0f2f5;}
-h1{color:${botReady?'#128C7E':'#888'}}</style></head>
-<body><h1>${botReady ? '✅ Bot Online' : '⏳ Starting...'}</h1>
-<p>Status: <b>${botStatus}</b> | Registered: <b>${Object.keys(db.registrations).length}</b> | WA Group Slots: <b>${slotCount}</b></p>
-<p>Data: <b>${DATA_PATH}</b></p>
-<p><small>Created by Poojana Kaveesh | IT26101524 | 94772197530</small></p>
-</body></html>`);
-    }
-});
-
-// Pairing code endpoint — GET /pair?phone=94761297530
-app.get('/pair', async (req, res) => {
-    const phone = (req.query.phone || '').replace(/[^0-9]/g, '');
-    if (!phone) return res.json({ error: 'Missing phone number' });
-    if (!sock)  return res.json({ error: 'Bot not connected yet — wait for QR page to show, then try again' });
-    if (botStatus === 'ready') return res.json({ error: 'Already linked — bot is online' });
-    try {
-        const code = await sock.requestPairingCode(phone);
-        console.log(`🔑 Pairing code for ${phone}: ${code}`);
-        res.json({ code });
-    } catch(e) {
-        console.error('Pairing code error:', e.message);
-        res.json({ error: e.message });
-    }
-});
-
-const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🌐 HTTP on port ${PORT}`);
-    initData();
-});
-server.on('error', e => { console.error('💥 HTTP error:', e.message); process.exit(1); });
-
-// ─── INIT DATA ────────────────────────────────────────────────────────────────
-function initData() {
-    DATA_PATH = resolveDataPath();
-    AUTH_PATH = path.join(DATA_PATH, 'auth');
-    DB_PATH   = path.join(DATA_PATH, 'database.json');
-    try {
-        const credsFile = path.join(AUTH_PATH, 'creds.json');
-        const files = fs.readdirSync(AUTH_PATH);
-        if (files.length > 0 && !fs.existsSync(credsFile)) {
-            console.log('🧹 Partial auth — clearing');
-            fs.rmSync(AUTH_PATH, { recursive: true, force: true });
-        } else if (files.length > 0) {
-            console.log('🔑 Auth session found — resuming');
-        }
-    } catch(_) {}
-    fs.mkdirSync(AUTH_PATH, { recursive: true });
-    loadDB();
-    setTimeout(startBot, 1000);
-}
-
-function resolveDataPath() {
-    const candidates = [
-        process.env.DATA_PATH,
-        process.env.RAILWAY_VOLUME_MOUNT_PATH,
-        '/data', '/vol', '/mnt/data', '/app/data',
-    ].filter(Boolean);
-    for (const p of candidates) {
-        try {
-            fs.mkdirSync(p, { recursive: true });
-            const t = path.join(p, '.writetest');
-            fs.writeFileSync(t, '1'); fs.unlinkSync(t);
-            console.log(`💾 Data path: ${p}`);
-            return p;
-        } catch(_) { console.log(`⏭️  Not writable: ${p}`); }
-    }
-    console.warn('⚠️  Falling back to /tmp — data will NOT persist!');
-    fs.mkdirSync('/tmp/botdata', { recursive: true });
-    return '/tmp/botdata';
-}
-
-function loadDB() {
-    try {
-        if (fs.existsSync(DB_PATH)) {
-            const saved = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-            db = { ...db, ...saved };
-            if (!db.waGroups)      db.waGroups      = {};
-            if (!db.projectGroups) db.projectGroups = {};
-            if (!db.admins)        db.admins        = [];
-            if (!db.banned)        db.banned        = [];
-            if (!db.broadcasts)    db.broadcasts    = [];
-            if (!db.languages)     db.languages     = {};
-            if (!db.aiProvider)    db.aiProvider    = {};
-            if (!db.groupLinks)    db.groupLinks    = {};
-            if (!db.aiSessions)    db.aiSessions    = {};
-            console.log(`📦 DB loaded — ${Object.keys(db.registrations).length} registrations, ${Object.keys(db.waGroups).length} WA groups`);
-        }
-    } catch(e) { console.error('DB load error:', e.message); }
-}
-
-// Atomic write: write to temp file, then rename to avoid corruption
-function saveDB() {
-    try {
-        const tmp = DB_PATH + '.tmp';
-        fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
-        fs.renameSync(tmp, DB_PATH);
-    } catch(e) { console.error('DB save error:', e.message); }
-}
-
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-const jidNum       = jid => (jid || '').replace(/@.*/, '').replace(/[^0-9]/g, '');
-const toJid        = num => `${num.replace(/[^0-9]/g, '')}@s.whatsapp.net`;
-const isSuperAdmin = jid => {
-    if (SUPER_ADMIN_LIDS.includes(jidNum(jid))) return true;
-    if (jidNum(jid) === jidNum(SUPER_ADMIN)) return true;
-    return false;
-};
 const isAdmin      = jid => isSuperAdmin(jid) || db.admins.some(a => jidNum(a) === jidNum(jid));
 const isBanned     = jid => db.banned.some(b => jidNum(b) === jidNum(jid));
 const nowISO       = () => new Date().toISOString();
@@ -962,9 +563,6 @@ async function handleMessage(rawMsg) {
             msg.message?.listResponseMessage?.title || '';
 
         if (!body || !body.trim()) return;
-        const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-        const quotedText = quotedMsg?.conversation || quotedMsg?.extendedTextMessage?.text || '';
-        const isReplyToAI = quotedText.includes('Assistant') || quotedText.includes('Answer:') || quotedText.includes('සහායක') || quotedText.includes('Turn ');
 
         const ts = Number(msg.messageTimestamp) * 1000;
         if (Date.now() - ts > 600000) return;  // skip messages older than 10 min (covers Railway deploy time)
@@ -987,9 +585,6 @@ async function handleMessage(rawMsg) {
 }
 
 async function processMessage(jid, msg, body) {
-        const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-        const quotedText = quotedMsg?.conversation || quotedMsg?.extendedTextMessage?.text || '';
-        const isReplyToAI = quotedText.includes('Answer:') || quotedText.includes('Turn') || quotedText.includes('Assistant') || quotedText.includes('සහායක');
     try {
         const sid = jid;
         // reply — Lane A (direct, instant, retries 3x)
@@ -1003,6 +598,11 @@ async function processMessage(jid, msg, body) {
             }
         };
 
+        // Detect reply to AI message for conversation continuation
+        const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const quotedText = quotedMsg?.conversation || quotedMsg?.extendedTextMessage?.text || '';
+        const isReplyToAI = quotedText.includes('Assistant') && (quotedText.includes('Answer:') || quotedText.includes('Turn') || quotedText.includes('💡'));
+
         const parts = body.trim().split(/\s+/);
         const cmd   = parts[0].replace(/^\//, '').toUpperCase();
         const arg1  = parts[1] || '';
@@ -1013,7 +613,7 @@ async function processMessage(jid, msg, body) {
 
         if (isBanned(sid)) { console.log(`🚫 Banned user: ${jidNum(sid)}`); return; }
 
-        // ── ENDCHAT ───────────────────────────────────────────────────────
+        // ── ENDCHAT ───────────────────────────────────────────────────────────
         if (body.trim().toUpperCase() === 'ENDCHAT') {
             const lang = getLang(sid);
             if (aiConversations.has(sid)) {
@@ -1021,20 +621,24 @@ async function processMessage(jid, msg, body) {
                 aiConversations.delete(sid);
                 await reply(withFooter(lang==='si'
                     ? `✅ *AI සංවාදය අවසන්!*
-📊 ප්‍රශ්න ${turns}ක් .
-නව: *ASK <ප්‍රශ්නය>*`
-                    : `✅ *AI chat ended!*
-📊 ${turns} question(s) asked.
-New session: *ASK <question>*`
+
+📊 ප්‍රශ්න ${turns}ක් අසන ලදී.
+
+නව ප්‍රශ්නයක් සඳහා *ASK <ප්‍රශ්නය>*`
+                    : `✅ *AI chat session ended!*
+
+📊 You asked ${turns} question(s).
+
+Start new: *ASK <question>*`
                 ));
             } else {
-                await reply(withFooter(lang==='si' ? '⚠️ සක්‍රිය AI සංවාදයක් නොමැත.' : '⚠️ No active AI session.'));
+                await reply(withFooter(lang==='si' ? '⚠️ සක්‍රිය AI සංවාදයක් නොමැත.' : '⚠️ No active AI chat session.'));
             }
             return;
         }
 
-        // ── AI REPLY CONTINUATION ─────────────────────────────────────────────
-        if (isReplyToAI && body.trim() && cmd !== 'ASK' && cmd !== 'SETAI' && cmd !== 'ENDCHAT') {
+        // ── AI REPLY CONTINUATION ─────────────────────────────────────────────────
+        if (isReplyToAI && body.trim() && body.trim().toUpperCase() !== 'ENDCHAT') {
             const lang = getLang(sid);
             const session = aiConversations.get(sid);
             const question = body.trim();
@@ -1042,14 +646,15 @@ New session: *ASK <question>*`
             const stuName = reg ? STUDENTS[reg]?.name?.split(' ')[0] : 'Student';
             const provKey = session?.providerKey || getAIProvider(sid);
             const prov = AI_PROVIDERS[provKey];
-            const history = session?.history || [];
+            const history = session?.history ? [...session.history] : [];
+            // Add the new question to history
             history.push({ role: 'user', content: question });
             await reply(withFooter(`⏳ *${prov.emoji} ${prov.name} is thinking...*`));
             try {
-                const sys = `You are a helpful academic assistant for SLIIT Year 1 Semester 1 students. Student: ${stuName}. Keep answers clear under 350 words. Use backticks for code. Reply in Sinhala if asked in Sinhala.`;
-                const answer = await prov.call(question, sys, history.slice(-6));
+                const sys = `You are a helpful academic assistant for SLIIT Year 1 Semester 1 students. Student: ${stuName}. Answer concisely under 350 words. Format code with backticks. Reply in Sinhala if asked in Sinhala. This is a continuing conversation - maintain context.`;
+                const answer = await prov.call(question, sys, history.slice(-8));
                 history.push({ role: 'assistant', content: answer });
-                aiConversations.set(sid, { history: history.slice(-10), lastActivity: Date.now(), providerKey: provKey });
+                aiConversations.set(sid, { history: history.slice(-12), lastActivity: Date.now(), providerKey: provKey });
                 const turn = Math.floor(history.length/2);
                 await reply(withFooter(`${prov.emoji} *${prov.name}* (Turn ${turn})
 
@@ -1060,7 +665,7 @@ ${answer}
 
 _💬 Reply to continue | *ENDCHAT* to end_`));
             } catch(e) {
-                console.error('AI reply error:', e.message);
+                console.error('AI continuation error:', e.message);
                 await reply(withFooter(`❌ *${prov.name} unavailable.* Try *SETAI llama*`));
             }
             return;
@@ -1103,254 +708,118 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
             let lines;
             if (lang === 'si') {
                 lines = [
-                    `╔══════════════════════════════╗`,
-                    `  🎓 *SLIIT Y1S1 Assistant Bot*`,
-                    `╚══════════════════════════════╝`,
+                    `╔═══════════════════════════╗`,
+                    `  🤖 *SLIIT Y1S1 සහායක*`,
+                    `╚═══════════════════════════╝`,
                     ``,
-                    greet, greeting, ``,
+                    greet,
+                    greeting,
+                    ``,
                     `💬 _${quote}_`,
                     ``,
-                    `━━━━ 📌 *Registration* ━━━━`,
+                    `━━━━ 📌 *ආරම්භ කරන්න* ━━━━`,
                     ``,
                     `*REG IT26XXXXXX*`,
-                    `  Register with your SLIIT IT number`,
+                    `  ඔබේ SLIIT IT අංකය යොදා ලියාපදිංචි වන්න`,
+                    `  ඔබේ profile සහ group link ලබාගන්න`,
                     ``,
-                    `━━━━ 👤 *My Profile* ━━━━`,
+                    `━━━━ 👤 *මගේ Profile* ━━━━`,
                     ``,
-                    `*MYINFO*          📋 Your student profile`,
-                    `*MYGROUPS*        📊 Timetable & group info`,
-                    `*MYLINK*          🔗 Your WhatsApp group link`,
-                    `*CLASSMATES*      👥 See your groupmates`,
-                    `*JOINGROUP WD01*  🏘️ Get any group link`,
+                    `*MYINFO*      ඔබේ student profile බලන්න`,
+                    `*MYGROUPS*    කාල සටහන සහ project group`,
+                    `*MYLINK*      WhatsApp group invite link`,
+                    `*CLASSMATES*  ඔබේ group එකේ සිටිනා අය`,
+                    `*JOINGROUP WD01*  ඕනෑම group link`,
                     ``,
-                    `━━━━ 📅 *Timetable* ━━━━`,
+                    `━━━━ 📅 *කාල සටහන* ━━━━`,
                     ``,
-                    `*TODAY*      📆 Today's schedule`,
-                    `*TOMORROW*   📆 Tomorrow's classes`,
-                    `*NEXT*       ⏰ Next class now`,
-                    `*WEEK*       📋 Full weekly view`,
-                    `*TT Friday*  📅 Day-specific timetable`,
+                    `*TODAY*      අදට ඇති classes`,
+                    `*TOMORROW*   හෙටට ඇති classes`,
+                    `*NEXT*       ඊළඟ class එක`,
+                    `*WEEK*       සතිය overview`,
+                    `*TT Friday*  දිනය අනුව class`,
                     ``,
-                    `━━━━ 🔍 *Search* ━━━━`,
+                    `━━━━ 🔍 *සෙවීම* ━━━━`,
                     ``,
-                    `*INFO IT26XXXXXX*  🔍 Any student's info`,
-                    `*SEARCH <name>*    🔎 Search by name`,
+                    `*INFO IT26XXXXXX*  ශිෂ්‍යයෙකුගේ details`,
+                    `*SEARCH <නම>*      නමෙන් සෙවීම`,
                     ``,
-                    `━━━━ 🤖 *AI Assistant* ━━━━`,
+                    `━━━━ 🤖 *AI සහායක* ━━━━`,
                     ``,
-                    `*ASK <question>*  🧠 Ask AI anything!`,
-                    `  💬 Reply to AI message to continue chat`,
-                    `  e.g. ASK What is OOP?`,
-                    `*SETAI llama*     🦙 Llama 3.3 70B (default)`,
-                    `*SETAI gemini*    🟦 Google Gemma 2`,
-                    `*SETAI mistral*   ⚡ Mistral Saba`,
-                    `*SETAI deepseek*  🔬 DeepSeek R1`,
-                    `*QUOTE*           💬 Motivational quote`,
-                    `*ENDCHAT*         🔚 End AI session`,
+                    `*ASK <ප්‍රශ්නය>*  AI සහායකෙන් ප්‍රශ්නය අසන්න`,
+                    `  උදා: ASK What is a database?`,
+                    `  උදා: ASK Explain OOP in simple terms`,
                     ``,
-                    `━━━━ 🎨 *Creative Tools* ━━━━`,
+                    `━━━━ 🌐 *භාෂාව* ━━━━`,
                     ``,
-                    `*IMAGE <description>*  🖼️ Generate AI image`,
-                    `  e.g. IMAGE futuristic SLIIT campus`,
-                    `*SLIDES <topic>*       📊 AI presentation`,
-                    `  e.g. SLIDES Intro to OOP`,
-                    `*VIDEO <topic>*        🎬 Find tutorials`,
-                    `  e.g. VIDEO database normalization`,
+                    `*LANG EN*   Switch to English`,
+                    `*LANG SI*   සිංහල (දැනට)`,
                     ``,
-                    `━━━━ 🌐 *Language* ━━━━`,
+                    `━━━━ ℹ️ *ගැන* ━━━━`,
                     ``,
-                    `*LANG SI*  🇱🇰 Sinhala`,
-                    `*LANG EN*  🇬🇧 English (current)`,
+                    `📞 SLIIT Help Center: +94 11 754 4801`,
                     ``,
-                    `━━━━ ℹ️ *About* ━━━━`,
-                    ``,
-                    `📞 SLIIT Help: *+94 11 754 4801*`,
-                    `⚠️ _Not associated with SLIIT operations_`,
+                    `⚠️ _මෙම bot එක SLIIT ආයතනය සමඟ සම්බන්ධ නොවේ_`,
                 ];
             } else {
                 lines = [
-                    `╔════════════════════════════╗`,
-                    `  🎓 *SLIIT Y1S1 Assistant Bot*`,
-                    `╚════════════════════════════╝`,
+                    `╔═══════════════════════════╗`,
+                    `  🤖 *SLIIT Y1S1 Assistant*`,
+                    `╚═══════════════════════════╝`,
                     ``,
-                    greet, greeting, ``,
+                    greet,
+                    greeting,
+                    ``,
                     `💬 _${quote}_`,
                     ``,
-                    `━━━━ 📌 *Registration* ━━━━`,``,
+                    `━━━━ 📌 *Start Here* ━━━━`,
+                    ``,
                     `*REG IT26XXXXXX*`,
-                    `  Register with your SLIIT IT number`,
+                    `  Register using your SLIIT IT number`,
+                    `  to unlock your profile & group link`,
                     ``,
-                    `━━━━ 👤 *My Profile* ━━━━`,``,
-                    `*MYINFO*          📋 Your student profile`,
-                    `*MYGROUPS*        📊 Timetable & group info`,
-                    `*MYLINK*          🔗 Your WhatsApp group link`,
-                    `*CLASSMATES*      👥 See your groupmates`,
-                    `*JOINGROUP WD01*  🏘️ Get any group link`,
+                    `━━━━ 👤 *My Profile* ━━━━`,
                     ``,
-                    `━━━━ 📅 *Timetable* ━━━━`,``,
-                    `*TODAY*      📆 Today's schedule`,
-                    `*TOMORROW*   📆 Tomorrow's classes`,
-                    `*NEXT*       ⏰ Next class now`,
-                    `*WEEK*       📋 Full weekly view`,
-                    `*TT Friday*  📅 Day-specific timetable`,
+                    `*MYINFO*      View your student profile`,
+                    `*MYGROUPS*    Your timetable & project group`,
+                    `*MYLINK*      Get your WhatsApp group link`,
+                    `*CLASSMATES*  See who's in your project group`,
+                    `*JOINGROUP WD01*  Get any group's invite link`,
                     ``,
-                    `━━━━ 🔍 *Search* ━━━━`,``,
-                    `*INFO IT26XXXXXX*  🔍 Any student info`,
-                    `*SEARCH <name>*    🔎 Search by name`,
+                    `━━━━ 📅 *Timetable* ━━━━`,
                     ``,
-                    `━━━━ 🤖 *AI Assistant* ━━━━`,``,
-                    `  💬 Reply to continue the chat`,
-                    `*SETAI llama*     🦙 Llama 3.3 70B`,
-                    `*SETAI gemini*    🟦 Google Gemma 2`,
-                    `*SETAI mistral*   ⚡ Mistral Saba`,
-                    `*SETAI deepseek*  🔬 DeepSeek R1`,
-                    `*QUOTE*           💬 Motivational quote`,
-                    `*ENDCHAT*         🔚 End AI session`,
+                    `*TODAY*      Today's class schedule`,
+                    `*TOMORROW*   Tomorrow's classes`,
+                    `*NEXT*       Your next upcoming class`,
+                    `*WEEK*       Full weekly timetable`,
+                    `*TT Friday*  Timetable for a specific day`,
                     ``,
-                    `━━━━ 🎨 *Creative Tools* ━━━━`,``,
-                    `*IMAGE <description>*  🖼️ AI image`,
-                    `*SLIDES <topic>*       📊 AI presentation`,
-                    `*VIDEO <topic>*        🎬 Find tutorials`,
+                    `━━━━ 🔍 *Search* ━━━━`,
                     ``,
-                    `━━━━ 🌐 *Language* ━━━━`,``,
-                    `*LANG SI*  🇱🇰 Sinhala`,
-                    `*LANG EN*  🇬🇧 English (current)`,
+                    `*INFO IT26XXXXXX*  Look up any student`,
+                    `*SEARCH <name>*    Search students by name`,
                     ``,
-                    `━━━━ ℹ️ *About* ━━━━`,``,
-                    `📞 SLIIT Help: *+94 11 754 4801*`,
-                    `⚠️ _Not associated with SLIIT operations_`,
+                    `━━━━ 🤖 *AI Assistant* ━━━━`,
+                    ``,
+                    `*ASK <question>*  Ask the AI anything!`,
+                    `  e.g. ASK What is a database?`,
+                    `  e.g. ASK Explain OOP in simple terms`,
+                    `  e.g. ASK Help me understand recursion`,
+                    ``,
+                    `━━━━ 🌐 *Language* ━━━━`,
+                    ``,
+                    `*LANG SI*   Switch to Sinhala / සිංහල`,
+                    `*LANG EN*   English (current)`,
+                    ``,
+                    `━━━━ ℹ️ *About* ━━━━`,
+                    ``,
+                    `📞 *SLIIT Help Center:* +94 11 754 4801`,
+                    ``,
+                    `⚠️ _This bot is not associated with SLIIT operations_`,
                 ];
             }
-            if (isAdmin(sid)) lines.push(``, `🛡️ *Admin:* Send *ADMINHELP* for admin commands.`);
+            if (isAdmin(sid)) lines.push(``, `🛡️ *${lang==='si'?'Admin:':'Admin:'} Send *ADMINHELP* for admin commands.`);
             await reply(withFooter(lines.join('\n')));
-            return;
-        }
-
-        // ── IMAGE — AI image generation (Pollinations - free) ─────────────────
-        if (cmd === 'IMAGE' || cmd === 'IMG' || cmd === 'IMAGINE') {
-            const lang = getLang(sid);
-            const prompt = body.replace(/^(IMAGE|IMG|IMAGINE)\s*/i, '').trim();
-            if (!prompt) {
-                await reply(withFooter(lang==='si'
-                    ? '❌ *Description එකක් දෙන්න!*\n\nඋදා: *IMAGE a beautiful sunset*'
-                    : '❌ *Include a description!*\n\nExample: *IMAGE a futuristic SLIIT campus*\nExample: *IMAGE a programmer at night*'
-                ));
-                return;
-            }
-            await reply(withFooter(lang==='si'
-                ? `⏳ *AI Image හදනවා...*\n\n"${prompt.slice(0,50)}"\n\nරැඳී සිටින්න! (10-20s)`
-                : `⏳ *Generating AI Image...*\n\n"${prompt.slice(0,50)}"\n\nPlease wait (10-20s)!`
-            ));
-            try {
-                const encodedPrompt = encodeURIComponent(prompt + ', high quality, detailed');
-                const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600&nologo=true&seed=${Date.now()}`;
-                const resp = await fetch(imageUrl, { signal: AbortSignal.timeout(25000) });
-                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                const buffer = Buffer.from(await resp.arrayBuffer());
-                if (buffer.length < 1000) throw new Error('Image too small');
-                await directSend(sid, {
-                    image: buffer,
-                    caption: withFooter(lang==='si'
-                        ? `🎨 *AI Generated Image*\n\n📝 "${prompt}"\n\n_නව image: IMAGE <description>_`
-                        : `🎨 *AI Generated Image*\n\n📝 "${prompt}"\n\n_More: IMAGE <description>_`
-                    )
-                });
-            } catch(e) {
-                console.error('Image error:', e.message);
-                await reply(withFooter(lang==='si'
-                    ? '❌ *Image generate නොහැකිය.*\n\nනැවත try කරන්න.'
-                    : '❌ *Could not generate image.*\n\nTry again with simpler description.'
-                ));
-            }
-            return;
-        }
-
-        // ── VIDEO — YouTube educational search ────────────────────────────────
-        if (cmd === 'VIDEO' || cmd === 'YOUTUBE' || cmd === 'YT') {
-            const lang = getLang(sid);
-            const query = body.replace(/^(VIDEO|YOUTUBE|YT)\s*/i, '').trim();
-            if (!query) {
-                await reply(withFooter('❌ Include a topic!\n\nExample: *VIDEO OOP in Java*\nExample: *VIDEO Database normalization*'));
-                return;
-            }
-            const ytSearch = encodeURIComponent(query + ' tutorial');
-            await reply(withFooter([
-                `🎬 *Educational Videos*`,
-                ``,
-                `📚 Topic: *${query}*`,
-                ``,
-                `🔗 Watch on YouTube:`,
-                `https://www.youtube.com/results?search_query=${ytSearch}`,
-                ``,
-                `💡 Also try:`,
-                `• ${query} for beginners`,
-                `• ${query} explained simply`,
-                `• ${query} crash course`,
-            ].join('\n')));
-            return;
-        }
-
-        // ── SLIDES — AI presentation maker ────────────────────────────────────
-        if (cmd === 'SLIDES' || cmd === 'PPT' || cmd === 'PRESENTATION') {
-            const lang = getLang(sid);
-            const topic = body.replace(/^(SLIDES|PPT|PRESENTATION)\s*/i, '').trim();
-            if (!topic) {
-                await reply(withFooter(lang==='si'
-                    ? '❌ Topic එකක් දෙන්න!\n\nඋදා: *SLIDES Introduction to OOP*'
-                    : '❌ Include a topic!\n\nExample: *SLIDES Introduction to OOP*\nExample: *SLIDES Cloud Computing*'
-                ));
-                return;
-            }
-            const provKey = getAIProvider(sid);
-            const prov = AI_PROVIDERS[provKey];
-            await reply(withFooter(`⏳ *${prov.emoji} Creating presentation...*\n\nTopic: "${topic.slice(0,50)}"`));
-            try {
-                const reg = db.registrations[sid];
-                const stuName = reg ? STUDENTS[reg]?.name?.split(' ')[0] : 'Student';
-                const sys = 'You are an expert presentation creator for university students.';
-                const prompt = `Create a detailed slide-by-slide presentation for SLIIT Year 1 student "${stuName}" on: "${topic}"
-
-Use this EXACT format for each slide:
-
-📑 SLIDE 1 — TITLE
-- Main Title: [title]
-- Subtitle: [subtitle]
-- Hook: [one interesting fact]
-
-📑 SLIDE 2 — AGENDA
-- Point 1
-- Point 2
-- Point 3
-- Point 4
-
-📑 SLIDE 3 — [topic]
-- Key point 1
-- Key point 2
-- Key point 3
-🗣️ Speaker note: [what to say]
-
-[Continue for 5-7 more slides]
-
-📑 FINAL SLIDE — THANK YOU
-- Summary: [3 key takeaways]
-- Contact: [student name]
-- Q&A
-
-Keep bullets under 8 words each. Make it professional.`;
-                const answer = await prov.call(prompt, sys, []);
-                if (answer.length > 3800) {
-                    const mid = answer.lastIndexOf('📑', Math.floor(answer.length/2));
-                    const splitAt = mid > 100 ? mid : Math.floor(answer.length/2);
-                    await reply(withFooter(`📊 *AI Presentation (Part 1)*\n\n${answer.slice(0, splitAt)}`));
-                    await sleep(1200);
-                    await reply(withFooter(`📊 *AI Presentation (Part 2)*\n\n${answer.slice(splitAt)}\n\n_💡 Copy to Google Slides or PowerPoint!_`));
-                } else {
-                    await reply(withFooter(`📊 *AI Presentation*\n\n${answer}\n\n_💡 Copy to Google Slides or PowerPoint!_`));
-                }
-            } catch(e) {
-                console.error('Slides error:', e.message);
-                await reply(withFooter('❌ Could not create presentation. Try again.'));
-            }
             return;
         }
 
@@ -1372,31 +841,6 @@ Keep bullets under 8 words each. Make it professional.`;
             return;
         }
 
-        // ── SETAI ────────────────────────────────────────────────────────────
-        if (cmd === 'SETAI' || cmd === 'USEAI') {
-            const lang = getLang(sid);
-            const ch = (arg1||'').toLowerCase();
-            if (!ch) {
-                const cur = getAIProvider(sid);
-                const lines = [
-                    lang==='si' ? '🤖 *AI සේවාව තෝරන්න*' : '🤖 *Select AI Provider*', '',
-                    (lang==='si' ? 'දැනට: ' : 'Current: ') + AI_PROVIDERS[cur].emoji + ' *' + AI_PROVIDERS[cur].name + '*', '',
-                    '*SETAI gemini*  🟦 Google Gemma 4 ✅',
-                    '*SETAI llama*   🦙 Llama Nvidia ✅',
-                    '*SETAI kimi*    🌙 Kimi AI ✅',
-                    '*SETAI liquid*  💧 Liquid AI ✅',
-                ];
-                await reply(withFooter(lines.join('\n'))); return;
-            }
-            if (!AI_PROVIDERS[ch]) {
-                await reply(withFooter('❌ Options: *SETAI gemini* or *SETAI llama*')); return;
-            }
-            if (!db.aiProvider) db.aiProvider = {};
-            db.aiProvider[sid] = ch; saveDB();
-            await reply(withFooter('✅ *AI set to ' + AI_PROVIDERS[ch].emoji + ' ' + AI_PROVIDERS[ch].name + '!*\n\nNow use *ASK <question>*'));
-            return;
-        }
-
         // ── QUOTE — motivational quote ────────────────────────────────────────
         if (cmd === 'QUOTE' || cmd === 'MOTIVATE') {
             const lang = getLang(sid);
@@ -1405,13 +849,133 @@ Keep bullets under 8 words each. Make it professional.`;
             return;
         }
 
-        // ── ASK — AI with conversation memory ───────────────────────────────────
+        // ── ASK — AI assistant ────────────────────────────────────────────────
+        if (cmd === 'ASK' || cmd === 'AI') {
+            const lang = getLang(sid);
+            const question = body.replace(/^(ASK|AI)\s*/i, '').trim();
+            if (!question) {
+                const usage = lang==='si'
+                    ? '❌ *ප්‍රශ්නයක් යවන්න!*\n\nඋදා: *ASK What is a database?*\nඋදා: *ASK OOP explain කරන්න*'
+                    : '❌ *Please include your question!*\n\nExample: *ASK What is a database?*\nExample: *ASK Explain recursion simply*';
+                await reply(withFooter(usage));
+                return;
+            }
+            const reg = db.registrations[sid];
+            const stuName = reg ? STUDENTS[reg]?.name?.split(' ')[0] : 'Student';
+            await reply(withFooter(lang==='si'
+                ? `⏳ *AI සිතනවා...*\n\n"${question.slice(0,60)}${question.length>60?'...':''}" ගැන\n\nකරුණාකර රැඳී සිටින්න!`
+                : `⏳ *AI is thinking...*\n\nLooking into: "${question.slice(0,60)}${question.length>60?'...':''}"\n\nPlease wait a moment!`
+            ));
+            try {
+                const sysPrompt = `You are a helpful academic assistant for SLIIT (Sri Lanka Institute of Information Technology) Year 1 Semester 1 students. 
+The student's name is ${stuName}. 
+Answer questions about programming, databases, mathematics, IT concepts, and campus life.
+Keep answers clear, concise and student-friendly.
+Use simple English. If the question is in Sinhala, reply in Sinhala.
+Format code blocks with backticks. Keep answers under 400 words.`;
+                const resp = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'claude-haiku-4-5-20251001',
+                        max_tokens: 600,
+                        system: sysPrompt,
+                        messages: [{ role: 'user', content: question }]
+                    })
+                });
+                const data = await resp.json();
+                const answer = data?.content?.[0]?.text || 'Sorry, I could not get an answer.';
+                const header = lang==='si'
+                    ? `🤖 *AI සහායක*\n\n❓ *ප්‍රශ්නය:* ${question}\n\n💡 *පිළිතුර:*\n`
+                    : `🤖 *AI Assistant*\n\n❓ *Question:* ${question}\n\n💡 *Answer:*\n`;
+                const footer = lang==='si'
+                    ? `\n\n_තවත් ප්‍රශ්නයක් ඇත්නම් *ASK <ප්‍රශ්නය>* යවන්න_`
+                    : `\n\n_Ask another question with *ASK <question>*_`;
+                await reply(withFooter(header + answer + footer));
+            } catch(e) {
+                console.error('❌ AI error:', e.message);
+                await reply(withFooter(lang==='si'
+                    ? '❌ *AI සේවාව දැන් ලබා ගත නොහැක.*\n\nපසුව නැවත උත්සාහ කරන්න.'
+                    : '❌ *AI service unavailable right now.*\n\nPlease try again later.'
+                ));
+            }
+            return;
+        }
+
+        // ── LANG ─────────────────────────────────────────────────────────────
+        if (cmd === 'LANG') {
+            if (!db.languages) db.languages = {};
+            const ch = (arg1||'').toUpperCase();
+            if (ch==='SI'||ch==='SINHALA') { db.languages[sid]='si'; saveDB(); await reply(withFooter('✅ *භාෂාව සිංහලට සකසන ලදී!*\n\n*HELP* යවන්න menu බලන්න.')); return; }
+            if (ch==='EN'||ch==='ENGLISH') { db.languages[sid]='en'; saveDB(); await reply(withFooter('✅ *Language set to English!*\n\nSend *HELP* to see menu.')); return; }
+            await reply(withFooter('🌐 *Choose language*\n\n*LANG EN* — 🇬🇧 English\n*LANG SI* — 🇱🇰 සිංහල'));
+            return;
+        }
+
+        // ── SETAI ─────────────────────────────────────────────────────────────
+        if (cmd === 'SETAI' || cmd === 'USEAI') {
+            const lang = getLang(sid);
+            const ch = (arg1||'').toLowerCase();
+            if (!ch) {
+                const cur = getAIProvider(sid);
+                const lines = [lang==='si'?'🤖 *AI සේවාව තෝරන්න*':'🤖 *Select AI Provider*', '',
+                    (lang==='si'?'දැනට: ':'Current: ') + AI_PROVIDERS[cur].emoji + ' *' + AI_PROVIDERS[cur].name + '*', '',
+                    '*SETAI llama*     🦙 Llama 3.3 70B (recommended)',
+                    '*SETAI gemini*    🟦 Google Gemma 2',
+                    '*SETAI mistral*   ⚡ Mistral Saba',
+                    '*SETAI deepseek*  🔬 DeepSeek R1',
+                ];
+                await reply(withFooter(lines.join('\n'))); return;
+            }
+            if (!AI_PROVIDERS[ch]) { await reply(withFooter('❌ Options: *SETAI llama* / *SETAI gemini* / *SETAI mistral* / *SETAI deepseek*')); return; }
+            if (!db.aiProvider) db.aiProvider = {};
+            db.aiProvider[sid] = ch; saveDB();
+            await reply(withFooter('✅ *AI set to ' + AI_PROVIDERS[ch].emoji + ' ' + AI_PROVIDERS[ch].name + '!*\n\nUse *ASK <question>* to start.'));
+            return;
+        }
+
+        // ── QUOTE ─────────────────────────────────────────────────────────────
+        if (cmd === 'QUOTE' || cmd === 'MOTIVATE') {
+            const lang = getLang(sid);
+            await reply(withFooter(`💬 *${lang==='si'?'දිරිගැන්වීම':'Daily Motivation'}*\n\n_${randomQuote(lang)}_\n\n_Keep pushing! 💪_`));
+            return;
+        }
+
+        // ── MYEAC — Show EAC group info ────────────────────────────────────────
+        if (cmd === 'MYEAC' || cmd === 'EAC') {
+            const lang = getLang(sid);
+            const reg = db.registrations[sid];
+            if (!reg) { await reply(withFooter(lang==='si'?'⚠️ ලියාපදිංචි වී නැත. *REG IT26XXXXXX* යවන්න.':'⚠️ Not registered. Send *REG IT26XXXXXX* first.')); return; }
+            const eacGroup = EAC_GROUPS[reg];
+            if (!eacGroup) { await reply(withFooter(lang==='si'?`⚠️ *${reg}* සඳහා EAC group data නොමැත.`:`⚠️ No EAC group data found for *${reg}*.`)); return; }
+            const ttGroup = eacGroup.slice(0,2); // e.g. "01", "02"
+            const subGroup = eacGroup.slice(2); // e.g. "A", "B"
+            const groupName = `Y1.S1.WD.IT.${ttGroup}.${subGroup}`;
+            const lines = [
+                `╔══════════════════════════╗`,
+                `  📚 *EAC Group Info*`,
+                `╚══════════════════════════╝`,
+                ``,
+                `🆔 Student: *${reg}*`,
+                ``,
+                `📋 *EAC Group:* ${eacGroup}`,
+                `📌 *Group Name:* ${groupName}`,
+                ``,
+                `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+                `💡 Your EAC class is group *${eacGroup}*`,
+                `   (English for Academic Communication)`,
+            ];
+            await reply(withFooter(lines.join('\n')));
+            return;
+        }
+
+        // ── ASK — Multi-AI with conversation memory ────────────────────────────
         if (cmd === 'ASK' || cmd === 'AI') {
             const lang = getLang(sid);
             const question = body.replace(/^(ASK|AI)\s*/i, '').trim();
             if (!question) {
                 await reply(withFooter(lang==='si'
-                    ? '❌ ප්‍රශ්නයක් යවන්න!\n\nඋදා: *ASK What is OOP?*'
+                    ? '❌ ප්‍රශ්නයක් යවන්න!\n\nඋදා: *ASK What is OOP?*\n\nAI change: *SETAI llama*'
                     : '❌ Include your question!\n\nExample: *ASK What is OOP?*\nSwitch AI: *SETAI llama*'
                 ));
                 return;
@@ -1420,34 +984,400 @@ Keep bullets under 8 words each. Make it professional.`;
             const stuName = reg ? STUDENTS[reg]?.name?.split(' ')[0] : 'Student';
             const provKey = getAIProvider(sid);
             const prov = AI_PROVIDERS[provKey];
-            const session = aiConversations.get(sid) || { history: [], lastActivity: Date.now(), providerKey: provKey };
-            session.history.push({ role: 'user', content: question });
-            session.lastActivity = Date.now();
-            session.providerKey = provKey;
+            // Build/continue session
+            const existingSession = aiConversations.get(sid);
+            const history = existingSession?.history ? [...existingSession.history] : [];
+            history.push({ role: 'user', content: question });
+            aiConversations.set(sid, { history: history.slice(-12), lastActivity: Date.now(), providerKey: provKey });
             await reply(withFooter(lang==='si'
-                ? `⏳ *${prov.emoji} ${prov.name} සිතනවා...*`
-                : `⏳ *${prov.emoji} ${prov.name} is thinking...*`
+                ? `⏳ *${prov.emoji} ${prov.name} සිතනවා...*\n\n"${question.slice(0,50)}" ගැන`
+                : `⏳ *${prov.emoji} ${prov.name} is thinking...*\n\nLooking into: "${question.slice(0,50)}"`
             ));
             try {
-                const sys = `You are a helpful academic assistant for SLIIT Year 1 Semester 1 students. Student: ${stuName}. Answer questions about programming, databases, maths, IT concepts. Keep answers clear under 350 words. Format code with backticks. Reply in Sinhala if asked in Sinhala.`;
-                const answer = await prov.call(question, sys, session.history.slice(-8));
-                session.history.push({ role: 'assistant', content: answer });
-                aiConversations.set(sid, { ...session, history: session.history.slice(-10) });
-                const turn = Math.floor(session.history.length/2);
+                const sys = `You are a helpful academic assistant for SLIIT Year 1 Semester 1 students. Student: ${stuName}. Answer concisely under 350 words. Format code with backticks. Reply in Sinhala if asked in Sinhala. Maintain context from conversation history.`;
+                const answer = await prov.call(question, sys, history.slice(-8));
+                const updatedHistory = [...history, { role: 'assistant', content: answer }];
+                aiConversations.set(sid, { history: updatedHistory.slice(-12), lastActivity: Date.now(), providerKey: provKey });
+                const turn = Math.floor(updatedHistory.length/2);
                 const header = lang==='si'
                     ? `${prov.emoji} *${prov.name} සහායක* (Turn ${turn})\n\n❓ *${question}*\n\n💡 *පිළිතුර:*\n`
                     : `${prov.emoji} *${prov.name} Assistant* (Turn ${turn})\n\n❓ *${question}*\n\n💡 *Answer:*\n`;
                 const foot = lang==='si'
-                    ? `\n\n_💬 Reply to continue | *ENDCHAT* end_`
-                    : `\n\n_💬 *Reply* to continue the chat | *ENDCHAT* to end_`;
+                    ? `\n\n_💬 Reply to continue | *ENDCHAT* end | *SETAI llama* change AI_`
+                    : `\n\n_💬 *Reply* to this message to continue | *ENDCHAT* to end_`;
                 await reply(withFooter(header + answer + foot));
             } catch(e) {
                 console.error('AI error:', e.message);
+                aiConversations.delete(sid);
                 await reply(withFooter(lang==='si'
-                    ? `❌ *${prov.name} ලබා ගත නොහැක.* *SETAI llama* try.`
+                    ? `❌ *${prov.name} ලබා ගත නොහැක.* *SETAI llama* try කරන්න.`
                     : `❌ *${prov.name} unavailable.* Try: *SETAI llama*`
                 ));
             }
+            return;
+        }
+
+        // ── IMAGE — AI image generation ────────────────────────────────────────
+        if (cmd === 'IMAGE' || cmd === 'IMG' || cmd === 'IMAGINE') {
+            const lang = getLang(sid);
+            const prompt = body.replace(/^(IMAGE|IMG|IMAGINE)\s*/i, '').trim();
+            if (!prompt) { await reply(withFooter(lang==='si'?'❌ *IMAGE futuristic SLIIT campus* ලෙස යවන්න':'❌ Example: *IMAGE futuristic SLIIT campus*')); return; }
+            await reply(withFooter(lang==='si'?`⏳ *AI image generate කරනවා...*\n"${prompt.slice(0,50)}"\nරැඳී සිටින්න!⏳`:`⏳ *Generating AI image...*\n"${prompt.slice(0,50)}"\nPlease wait!`));
+            try {
+                const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=800&height=600&nologo=true&seed=${Date.now()}`;
+                const resp = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });
+                if (!resp.ok) throw new Error('Image fetch failed: ' + resp.status);
+                const buffer = Buffer.from(await resp.arrayBuffer());
+                await directSend(sid, { image: buffer, caption: withFooter(`🎨 *AI Generated Image*\n\n📝 Prompt: ${prompt}\n\n_Generate another: IMAGE <description>_`) });
+            } catch(e) {
+                console.error('Image error:', e.message);
+                await reply(withFooter('❌ *Could not generate image.*\n\nTry a simpler description or try again later.'));
+            }
+            return;
+        }
+
+        // ── SLIDES — AI presentation maker ────────────────────────────────────
+        if (cmd === 'SLIDES' || cmd === 'PPT' || cmd === 'PRESENTATION') {
+            const lang = getLang(sid);
+            const topic = body.replace(/^(SLIDES|PPT|PRESENTATION)\s*/i, '').trim();
+            if (!topic) { await reply(withFooter(lang==='si'?'❌ *SLIDES Introduction to OOP* ලෙස යවන්න':'❌ Example: *SLIDES Introduction to OOP*')); return; }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Creating presentation...*\n\nTopic: "${topic.slice(0,50)}"`));
+            try {
+                const reg = db.registrations[sid];
+                const stuName = reg ? STUDENTS[reg]?.name?.split(' ')[0] : 'Student';
+                const prompt = `Create a university presentation outline for SLIIT student ${stuName} on: "${topic}"\n\nFormat:\n🎯 TITLE: [Title]\n\n📑 SLIDE 1: INTRODUCTION\n• [point]\n• [point]\nSpeaker notes: [notes]\n\n📑 SLIDE 2-7: [Continue with key topics]\n\n📑 FINAL SLIDE: CONCLUSION\n• Key takeaways\n\nKeep each slide to 3-4 bullet points.`;
+                const answer = await prov.call(prompt, 'You are an expert presentation creator for university students.', []);
+                if (answer.length > 3500) {
+                    const mid = answer.indexOf('\n📑', Math.floor(answer.length/2));
+                    await reply(withFooter(`📊 *AI Presentation - Part 1*\n${answer.slice(0, mid > 0 ? mid : Math.floor(answer.length/2))}`));
+                    await sleep(1000);
+                    await reply(withFooter(`📊 *AI Presentation - Part 2*\n${answer.slice(mid > 0 ? mid : Math.floor(answer.length/2))}\n\n_💡 Copy to Google Slides or PowerPoint!_`));
+                } else {
+                    await reply(withFooter(`📊 *AI Presentation*\n\n${answer}\n\n_💡 Copy to Google Slides or PowerPoint!_`));
+                }
+            } catch(e) {
+                console.error('Slides error:', e.message);
+                await reply(withFooter('❌ *Could not create presentation.* Try again later.'));
+            }
+            return;
+        }
+
+        // ── VIDEO — Find educational videos ───────────────────────────────────
+        if (cmd === 'VIDEO' || cmd === 'YT' || cmd === 'YOUTUBE') {
+            const lang = getLang(sid);
+            const query = body.replace(/^(VIDEO|YT|YOUTUBE)\s*/i, '').trim();
+            if (!query) { await reply(withFooter('❌ Example: *VIDEO OOP in Java*')); return; }
+            const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query + ' tutorial')}`;
+            await reply(withFooter([
+                `🎬 *Educational Videos*`,
+                ``,
+                `📚 Topic: *${query}*`,
+                ``,
+                `🔗 *Search Results:*`,
+                ytUrl,
+                ``,
+                `💡 *Quick searches:*`,
+                `• ${query} tutorial for beginners`,
+                `• ${query} explained simply`,
+                `• SLIIT ${query}`,
+                ``,
+                `_Tap the link to find videos!_`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── QUIZ ANSWER HANDLER ───────────────────────────────────────────────
+        if (quizSessions.has(sid) && !['QUIZ','MYEAC','ASK','HELP','MYINFO','SETAI','ENDCHAT','LANG'].includes(cmd)) {
+            const qs = quizSessions.get(sid);
+            const userAns = body.trim();
+            const lang = getLang(sid);
+            quizSessions.delete(sid);
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *Checking your answer...*`));
+            try {
+                const checkPrompt = `Quiz Question: "${qs.question}"
+Correct Answer: "${qs.answer}"
+Student's Answer: "${userAns}"
+Category: ${qs.category}
+
+Evaluate if the student's answer is correct (accept reasonable variations).
+Reply in this exact format:
+RESULT: CORRECT or WRONG
+EXPLANATION: [2-3 sentences explaining why the answer is correct/wrong, what the right answer is, and a helpful tip]`;
+                const result = await prov.call(checkPrompt, 'You are a strict but encouraging teacher. Evaluate student answers fairly.', []);
+                const isCorrect = result.toUpperCase().includes('RESULT: CORRECT');
+                const explanation = result.replace(/RESULT:[^\n]*/i, '').replace('EXPLANATION:', '').trim().replace('EXPLANATION:', '').trim();
+                const emoji = isCorrect ? '✅' : '❌';
+                const feedback = isCorrect
+                    ? (lang==='si' ? '🎉 *නිවැරදියි!*' : '🎉 *Correct! Well done!*')
+                    : (lang==='si' ? `❌ *වැරදියි.*\n\n✅ *නිවැරදි පිළිතුර:* ${qs.answer}` : `❌ *Not quite right.*\n\n✅ *Correct answer:* ${qs.answer}`);
+                await reply(withFooter([
+                    `${emoji} *Quiz Result*`,
+                    ``,
+                    `❓ *Question:* ${qs.question}`,
+                    `💬 *Your answer:* ${userAns}`,
+                    ``,
+                    feedback,
+                    ``,
+                    `📖 *Explanation:*`,
+                    explanation,
+                    ``,
+                    `_Send *QUIZ* for another question!_`,
+                ].join('\n')));
+            } catch(e) {
+                await reply(withFooter(`❌ Could not check answer. Try again.`));
+            }
+            return;
+        }
+
+        // ── MYEAC ─────────────────────────────────────────────────────────────
+        if (cmd === 'MYEAC' || cmd === 'EAC') {
+            const lang = getLang(sid);
+            const reg = db.registrations[sid];
+            if (!reg) { await reply(withFooter(lang==='si'?'⚠️ ලියාපදිංචි වී නැත. *REG IT26XXXXXX* යවන්න.':'⚠️ Not registered. Send *REG IT26XXXXXX* first.')); return; }
+            const eacGroup = EAC_GROUPS[reg];
+            if (!eacGroup) { await reply(withFooter(`⚠️ No EAC group found for *${reg}*. Contact admin.`)); return; }
+            const ttNum = eacGroup.slice(0,2);
+            const subGrp = eacGroup.slice(2);
+            await reply(withFooter([
+                `╔══════════════════════════╗`,
+                `  📚 *EAC Group Info*`,
+                `╚══════════════════════════╝`,
+                ``,
+                `🆔 Student: *${reg}*`,
+                ``,
+                `📋 *EAC Group:*    ${eacGroup}`,
+                `📌 *Class Name:*   Y1.S1.WD.IT.${ttNum}.${subGrp}`,
+                `📚 *Subject:*      English for Academic Communication`,
+                ``,
+                `💡 Your EAC class is in Group *${eacGroup}*`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── QUIZ — Daily practice questions ───────────────────────────────────
+        if (cmd === 'QUIZ' || cmd === 'PRACTICE' || cmd === 'Q') {
+            const lang = getLang(sid);
+            const category = (arg1||'').toLowerCase();
+            const categories = ['english','grammar','ielts','speaking','java','python','html','coding','pseudo','all'];
+            if (category && !categories.includes(category)) {
+                await reply(withFooter([
+                    `❓ *Quiz Categories:*`,
+                    ``,
+                    `*QUIZ english*   📝 English grammar`,
+                    `*QUIZ ielts*     🎓 IELTS preparation`,
+                    `*QUIZ speaking*  🗣️ Speaking skills`,
+                    `*QUIZ java*      ☕ Java programming`,
+                    `*QUIZ python*    🐍 Python programming`,
+                    `*QUIZ html*      🌐 HTML/CSS/Web`,
+                    `*QUIZ coding*    💻 General coding`,
+                    `*QUIZ pseudo*    📋 Pseudocode/Logic`,
+                    `*QUIZ all*       🎲 Random category`,
+                    ``,
+                    `_Just send *QUIZ* for a random question!_`,
+                ].join('\n')));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *Generating quiz question...*`));
+            try {
+                const cat = category || 'all';
+                const catMap = {
+                    english: 'English grammar (fill in the blank, correct the sentence, or choose the right word)',
+                    grammar: 'English grammar rules and usage',
+                    ielts: 'IELTS exam preparation (vocabulary, reading comprehension, or writing task)',
+                    speaking: 'English speaking and communication skills',
+                    java: 'Java programming (syntax, OOP, data structures)',
+                    python: 'Python programming (syntax, functions, data structures)',
+                    html: 'HTML, CSS, or basic web development',
+                    coding: 'Programming concepts (algorithms, debugging, logic)',
+                    pseudo: 'Pseudocode writing or algorithm logic',
+                    all: 'any of: English grammar, IELTS, Java, Python, HTML, or programming concepts',
+                };
+                const catDesc = catMap[cat] || catMap.all;
+                const prompt = `Create ONE quiz question about: ${catDesc}
+For SLIIT Year 1 university students.
+
+Reply in EXACTLY this format (no extra text):
+QUESTION: [the question - make it clear and specific]
+ANSWER: [the correct answer - be concise]
+CATEGORY: [${cat === 'all' ? 'detected category' : cat}]
+DIFFICULTY: [easy/medium/hard]`;
+                const result = await prov.call(prompt, 'You are a university quiz creator. Create clear, educational questions.', []);
+                const qMatch = result.match(/QUESTION:s*(.+)/i);
+                const aMatch = result.match(/ANSWER:s*(.+)/i);
+                const catMatch = result.match(/CATEGORY:s*(.+)/i);
+                const diffMatch = result.match(/DIFFICULTY:s*(.+)/i);
+                if (!qMatch || !aMatch) throw new Error('Bad format');
+                const question = qMatch[1].trim();
+                const answer = aMatch[1].trim();
+                const detectedCat = catMatch?.[1]?.trim() || cat;
+                const difficulty = diffMatch?.[1]?.trim() || 'medium';
+                quizSessions.set(sid, { question, answer, category: detectedCat, asked: Date.now() });
+                const diffEmoji = difficulty.toLowerCase().includes('easy') ? '🟢' : difficulty.toLowerCase().includes('hard') ? '🔴' : '🟡';
+                await reply(withFooter([
+                    `🎯 *Quiz Time!*`,
+                    ``,
+                    `📚 Category: *${detectedCat.toUpperCase()}*  ${diffEmoji} ${difficulty}`,
+                    ``,
+                    `❓ *${question}*`,
+                    ``,
+                    `_Reply with your answer!_`,
+                    `_Send *QUIZ* to skip & get new question_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Quiz error:', e.message);
+                await reply(withFooter('❌ Could not generate question. Try *QUIZ english* or *QUIZ java*'));
+            }
+            return;
+        }
+
+        // ── REG ───────────────────────────────────────────────────────────────
+        if (cmd === 'REG') {
+            if (!arg1) {
+                await reply(withFooter([
+                    `❌ *Missing Registration Number*`,
+                    ``,
+                    `📝 *How to register:*`,
+                    `Send: *REG IT26XXXXXX*`,
+                    ``,
+                    `Example: REG IT26101700`,
+                ].join('\n')));
+                return;
+            }
+            const { key, data } = lookupStudent(arg1);
+            if (!data) {
+                await reply(withFooter([
+                    `❌ *Student Not Found*`,
+                    ``,
+                    `🆔 Searched for: *${key}*`,
+                    ``,
+                    `Please double-check your IT number.`,
+                    `If the problem persists, contact admin.`,
+                    `📱 Support: 94772197530`,
+                ].join('\n')));
+                return;
+            }
+
+            const clash = Object.entries(db.registrations)
+                .find(([w, it]) => it === key && jidNum(w) !== jidNum(sid));
+            if (clash) {
+                await reply(withFooter([
+                    `⚠️ *Registration Conflict*`,
+                    ``,
+                    `*${key}* is already registered to a different WhatsApp number.`,
+                    `If this is your account, contact admin to fix it.`,
+                    `📱 Support: 94772197530`,
+                ].join('\n')));
+                return;
+            }
+
+            const alreadyRegistered = db.registrations[sid] === key;
+
+            db.registrations[sid] = key;
+            db.students[key] = { ...data, whatsapp: sid, registeredAt: nowISO() };
+            saveDB();
+
+            // Ask for group join confirmation instead of auto-adding
+            const groupPrompt = await askGroupJoinConfirmation(sid, data, key);
+
+            await reply(
+                withFooter(
+                    (alreadyRegistered ? `🔄 *Re-registered Successfully!*` : `🎉 *Registration Complete!*`) +
+                    `\n\n` + fmtStudent(key, data) + groupPrompt +
+                    `\n\n💡 Send *HELP* to see all available commands.`
+                )
+            );
+            return;
+        }
+
+        // ── INFO ──────────────────────────────────────────────────────────────
+        if (cmd === 'INFO') {
+            if (!arg1) {
+                await reply(withFooter([
+                    `❌ *Missing Student ID*`,
+                    ``,
+                    `📝 Usage: *INFO IT26XXXXXX*`,
+                    `Example:  INFO IT26101700`,
+                ].join('\n')));
+                return;
+            }
+            const { key, data } = lookupStudent(arg1);
+            if (!data) {
+                await reply(withFooter(`❌ *${key}* not found in the database.`));
+                return;
+            }
+            let txt = fmtStudent(key, data);
+            if (isAdmin(sid) && db.students[key]?.whatsapp) {
+                txt += `\n📱 *WhatsApp:* ${jidNum(db.students[key].whatsapp)}`;
+                txt += `\n🕒 *Registered:* ${db.students[key].registeredAt?.slice(0,10) || 'N/A'}`;
+                if (db.students[key].addedBy) txt += `\n🛡️  *Added By:*  ${db.students[key].addedBy}`;
+            }
+            await reply(withFooter(txt));
+            return;
+        }
+
+        // ── MYINFO ────────────────────────────────────────────────────────────
+        if (cmd === 'MYINFO') {
+            const reg = db.registrations[sid];
+            if (!reg) {
+                await reply(withFooter([
+                    `⚠️ *Not Registered Yet*`,
+                    ``,
+                    `To register, send:`,
+                    `*REG IT26XXXXXX*`,
+                    ``,
+                    `Replace IT26XXXXXX with your IT number.`,
+                ].join('\n')));
+                return;
+            }
+            const info = STUDENTS[reg];
+            if (!info) { await reply(withFooter(`❌ Student data error. Contact admin.`)); return; }
+            const slHour = new Date(Date.now() + 5.5 * 3600000).getUTCHours();
+            const timeGreet = slHour < 12 ? '🌅 Good morning' : slHour < 17 ? '☀️ Good afternoon' : '🌙 Good evening';
+            const firstName = info.name.split(' ')[0];
+            const regDate = db.students[reg]?.registeredAt?.slice(0,10) || 'N/A';
+            await reply(withFooter([
+                `${timeGreet}, *${firstName}!* 👋`,
+                ``,
+                fmtStudent(reg, info),
+                ``,
+                `📅 *Registered:* ${regDate}`,
+                ``,
+                `💡 Try: *TODAY* · *NEXT* · *CLASSMATES*`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── MYGROUPS ──────────────────────────────────────────────────────────
+        if (cmd === 'MYGROUPS') {
+            const reg = db.registrations[sid];
+            if (!reg) {
+                await reply(withFooter(`⚠️ *Not Registered*\n\nSend *REG IT26XXXXXX* to register first.`));
+                return;
+            }
+            const s    = STUDENTS[reg];
+            if (!s) { await reply(withFooter(`❌ Student data error. Contact admin.`)); return; }
+            const pg   = s.project_group;
+            const slot = db.students[reg]?.wa_group_slot || pg;
+            const wg   = db.waGroups[slot];
+            const memberCount = wg ? registeredCountInSlot(slot) : 0;
+            const isWE = s.timetable_group.includes('WE');
+            await reply(withFooter([
+                `╔══════════════════════════╗`,
+                `  📊 *My Groups – ${reg}*`,
+                `╚══════════════════════════╝`,
+                ``,
+                `🗓️  *Schedule:*   ${isWE ? '🌅 Weekend' : '📆 Weekday'}`,
+                `📚 *TT Group:*   ${s.timetable_group}`,
+                `📌 *Sub-Group:*  ${s.sub_group}`,
+                `🔢 *Project:*    ${pg}`,
+                ``,
+                wg
+                    ? `🏘️  *WA Group:*   ${slot}\n👥 *Members:*   ${memberCount}/${MAX_STUDENTS_PER_GROUP}\n🔗 ${wg.inviteLink || '(link unavailable)'}`
+                    : `⚠️  *WA Group:*   Not created yet\nSend *REG ${reg}* to trigger creation`,
+            ].join('\n')));
             return;
         }
 
@@ -1894,11 +1824,8 @@ Keep bullets under 8 words each. Make it professional.`;
             if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
             if (!arg1) { await reply(withFooter(`❌ Usage: *LOOKUP 94XXXXXXXXX*`)); return; }
             const waNum = arg1.replace(/[^0-9]/g, '');
-            // Search all registrations including LIDs
-            let reg = null;
-            for (const [j, id] of Object.entries(db.registrations)) {
-                if (jidNum(j) === waNum) { reg = id; break; }
-            }
+            const jidTarget = toJid(waNum);
+            const reg = db.registrations[jidTarget];
             if (!reg) {
                 await reply(withFooter(`❌ No registration found for number *${waNum}*`));
                 return;
