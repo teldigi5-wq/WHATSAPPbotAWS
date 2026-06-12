@@ -17,19 +17,19 @@ const SUPER_ADMIN = process.env.SUPER_ADMIN || '94772197530';
 const SUPER_ADMIN_LIDS = ['20985227042855'];
 
 
-async function callGroq(model, question, sys, history) {
+async function callGroq(model, question, sys, history, maxTokens) {
     const key = process.env.GROQ_API_KEY || '';
     if (!key) throw new Error('No Groq key');
     const messages = [{ role: 'system', content: sys }];
     if (history && history.length > 0) {
-        messages.push(...history.slice(-6));
+        messages.push(...history.slice(-8));
     } else {
         messages.push({ role: 'user', content: question });
     }
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {'Content-Type':'application/json','Authorization':'Bearer '+key},
-        body: JSON.stringify({ model, max_tokens: 600, messages })
+        body: JSON.stringify({ model, max_tokens: maxTokens || 900, messages, temperature: 0.7 })
     });
     const d = await r.json();
     if (d.error) throw new Error(d.error.message||JSON.stringify(d.error));
@@ -37,10 +37,10 @@ async function callGroq(model, question, sys, history) {
 }
 
 const AI_PROVIDERS = {
-    gemini: { name: 'Google Gemma 2', emoji: '🟦', call: async (q,s) => callGroq('llama-3.1-8b-instant', q, s) },
-    llama:  { name: 'Llama 3.3 70B',  emoji: '🦙', call: async (q,s) => callGroq('llama-3.3-70b-versatile', q, s) },
-    mistral:{ name: 'Mistral Saba',   emoji: '⚡', call: async (q,s) => callGroq('mistral-saba-24b', q, s) },
-    deepseek:{ name: 'DeepSeek R1',   emoji: '🔬', call: async (q,s) => callGroq('deepseek-r1-distill-llama-70b', q, s) }
+    gemini: { name: 'Google Gemma 2', emoji: '🟦', call: async (q,s,h,mt) => callGroq('llama-3.1-8b-instant', q, s, h, mt) },
+    llama:  { name: 'Llama 3.3 70B',  emoji: '🦙', call: async (q,s,h,mt) => callGroq('llama-3.3-70b-versatile', q, s, h, mt) },
+    mistral:{ name: 'Mistral Saba',   emoji: '⚡', call: async (q,s,h,mt) => callGroq('mistral-saba-24b', q, s, h, mt) },
+    deepseek:{ name: 'DeepSeek R1',   emoji: '🔬', call: async (q,s,h,mt) => callGroq('deepseek-r1-distill-llama-70b', q, s, h, mt) }
 };
 function getAIProvider(jid) {
     const p = db.aiProvider && db.aiProvider[jid];
@@ -93,6 +93,10 @@ const store = { contacts: {}, loadMessage: async () => null, bind: () => {} };
 // LID → phone JID map, populated from contacts.upsert events
 const lidToPhone = new Map();
 const aiConversations = new Map();
+const quizSessions = new Map(); // jid → { question, answer, category, asked }
+
+// ─── EAC GROUPING DATA (English for Academic Communication) ─────────────────
+const EAC_GROUPS = {"IT25101376":"01A","IT26101585":"01A","IT26100489":"01A","IT26102176":"01A","IT26101615":"01A","IT26101987":"01A","IT26101590":"01A","IT26102097":"01A","IT26102008":"01A","IT26101409":"01A","IT26101393":"01A","IT26101328":"01A","IT26102047":"01A","IT26101657":"01A","IT26101358":"01A","IT26102042":"01A","IT26101614":"01A","IT26101675":"01A","IT26101571":"01A","IT26101737":"01A","IT26101238":"01A","IT26101610":"01A","IT26101602":"01A","IT26101600":"01A","IT26101204":"01A","IT26101744":"01A","IT26101467":"01A","IT26101576":"01A","IT26101805":"01A","IT26101797":"01A","IT26100013":"01A","IT26101901":"01B","IT26101607":"01B","IT26101332":"01B","IT26101985":"01B","IT26102103":"01B","IT26300138":"01B","IT26101228":"01B","IT26101260":"01B","IT26101579":"01B","IT26101284":"01B","IT26101331":"01B","IT26101673":"01B","IT26101992":"01B","IT26102059":"01B","IT26101620":"01B","IT26102002":"01B","IT26101235":"01B","IT26101241":"01B","IT26101629":"01B","IT26200849":"01B","IT26102055":"01B","IT26101893":"01B","IT26101444":"01B","IT26102037":"01B","IT26102018":"01B","IT26101384":"01B","IT26102004":"01B","IT26101589":"01B","IT26101455":"01B","IT26101880":"01B","IT26101333":"01C","IT26101700":"01C","IT26102045":"01C","IT26100956":"01C","IT26101323":"01C","IT26102105":"01C","IT26101691":"01C","IT26101262":"01C","IT26101316":"01C","IT26100944":"01C","IT26101626":"01C","IT26101236":"01C","IT26101237":"01C","IT26101983":"01C","IT26101674":"01C","IT26101688":"01C","IT26101443":"01C","IT26101678":"01C","IT26102031":"01C","IT26100212":"01C","IT26101448":"01C","IT26101651":"01C","IT26101245":"01C","IT26101704":"01C","IT26101990":"01C","IT26101259":"01C","IT26101611":"01C","IT26101642":"01C","IT26101244":"01D","IT26101888":"01D","IT26101129":"01D","IT26101643":"01D","IT26101210":"01D","IT26102104":"01D","IT26101507":"01D","IT26101266":"01D","IT26102041":"01D","IT26101682":"01D","IT26101597":"01D","IT26101672":"01D","IT26102102":"01D","IT26101680":"01D","IT26101697":"01D","IT26101291":"01D","IT26101242":"01D","IT26101454":"01D","IT26101738":"01D","IT26101632":"01D","IT26101997":"01D","IT26101972":"01D","IT26100573":"01D","IT26101367":"02A","IT26101382":"02A","IT26101318":"02A","IT26102144":"02A","IT26101742":"02A","IT26101363":"02A","IT26101512":"02A","IT26101898":"02A","IT26101530":"02A","IT26101522":"02A","IT26101484":"02A","IT26101892":"02A","IT26101735":"02A","IT26101912":"02A","IT26101523":"02A","IT26101946":"02A","IT26101247":"02A","IT26101432":"02A","IT26101301":"02A","IT26101870":"02A","IT26102015":"02A","IT26102107":"02A","IT26102076":"02A","IT26101430":"02A","IT26102017":"02A","IT26102023":"02A","IT26101365":"02A","IT26101490":"02A","IT26101268":"02A","IT26101250":"02A","IT26100718":"02B","IT26101955":"02B","IT26102116":"02B","IT26200228":"02B","IT26101524":"02B","IT26101962":"02B","IT26101628":"02B","IT26101324":"02B","IT26101353":"02B","IT26101801":"02B","IT26102141":"02B","IT26101531":"02B","IT26101889":"02B","IT26101453":"02B","IT26101964":"02B","IT26101658":"02B","IT26101369":"02B","IT26101370":"02B","IT26101319":"02B","IT26101225":"02B","IT26101340":"02B","IT26101337":"02B","IT26101942":"02B","IT26101427":"02B","IT26101469":"02B","IT26101789":"02B","IT26101230":"02B","IT26101953":"02B","IT26101344":"02B","IT26101465":"02B","IT26101639":"02C","IT26101660":"02C","IT26101456":"02C","IT26101285":"02C","IT26101275":"02C","IT26101806":"02C","IT26101528":"02C","IT26101533":"02C","IT26101956":"02C","IT26102112":"02C","IT26101570":"02C","IT26101214":"02C","IT26101223":"02C","IT26101401":"02C","IT26102106":"02C","IT26101313":"02C","IT26101787":"02C","IT26101802":"02C","IT26102113":"02C","IT26101295":"02C","IT26102110":"02C","IT26102108":"02C","IT26101479":"02C","IT26102012":"02C","IT26101716":"02C","IT26101272":"02C","IT26101277":"02C","IT26102114":"02C","IT26102039":"02C","IT26101525":"02D","IT26101520":"02D","IT26101513":"02D","IT26101351":"02D","IT26102115":"02D","IT26101299":"02D","IT26101334":"02D","IT26102150":"02D","IT26101470":"02D","IT26101438":"02D","IT26101421":"02D","IT26101809":"02D","IT26101526":"02D","IT26101482":"02D","IT26102149":"02D","IT26102065":"02D","IT26101822":"02D","IT26101491":"02D","IT26101480":"02D","IT26101349":"02D","IT26102046":"02D","IT26102109":"02D","IT26101362":"02D","IT26101496":"02D","IT26101750":"02D","IT26101212":"02D","IT26102030":"02D","IT26101508":"02D","IT26101795":"02D","IT26101372":"03A","IT26101293":"03A","IT26101646":"03A","IT26101618":"03A","IT26102021":"03A","IT26101966":"03A","IT26101720":"03A","IT26101891":"03A","IT26100262":"03A","IT26102019":"03A","IT26101996":"03A","IT26101968":"03A","IT26101662":"03A","IT26101420":"03A","IT26101355":"03A","IT26101303":"03A","IT26101655":"03A","IT26101568":"03A","IT26101932":"03A","IT26101373":"03A","IT26102003":"03A","IT26101488":"03A","IT26101919":"03A","IT26101248":"03A","IT26101900":"03A","IT26101941":"03A","IT26101950":"03A","IT26101604":"03A","IT26101389":"03A","IT26101812":"03A","IT26102142":"03B","IT26101917":"03B","IT26101743":"03B","IT26101696":"03B","IT26101935":"03B","IT26101954":"03B","IT26100693":"03B","IT26101622":"03B","IT26102034":"03B","IT26101690":"03B","IT26101770":"03B","IT26102058":"03B","IT26101428":"03B","IT26102032":"03B","IT26101631":"03B","IT26101929":"03B","IT26101322":"03B","IT26101807":"03B","IT26101573":"03B","IT26101361":"03B","IT26101577":"03B","IT26200749":"03B","IT26101297":"03B","IT26102127":"03B","IT26101599":"03B","IT26450013":"03B","IT26101414":"03B","IT26101958":"03B","IT26101498":"03B","IT26101398":"03B","IT26101412":"03C","IT26101984":"03C","IT26101908":"03C","IT26101417":"03C","IT26101474":"03C","IT26300323":"03C","IT26101625":"03C","IT26101410":"03C","IT26100543":"03C","IT26101725":"03C","IT26101406":"03C","IT26101635":"03C","IT26101364":"03C","IT26101429":"03C","IT26102075":"03C","IT26101803":"03C","IT26101582":"03C","IT26101653":"03C","IT26101377":"03C","IT26101978":"03C","IT26101203":"03C","IT26101796":"03C","IT26101936":"03C","IT26102111":"03C","IT26101904":"03C","IT26101825":"03C","IT26101913":"03C","IT26101494":"03C","IT26101613":"03C","IT26101823":"03D","IT26102143":"03D","IT26101400":"03D","IT26101434":"03D","IT26101980":"03D","IT26101986":"03D","IT26100739":"03D","IT26102048":"03D","IT26100407":"03D","IT26102148":"03D","IT26101317":"03D","IT26101883":"03D","IT26101925":"03D","IT26101379":"03D","IT26101606":"03D","IT26101909":"03D","IT26101619":"03D","IT26101595":"03D","IT26101376":"03D","IT26101882":"03D","IT26101767":"03D","IT26101937":"03D","IT26101222":"03D","IT26101475":"04A","IT26101396":"04A","IT26101307":"04A","IT26101495":"04A","IT26101407":"04A","IT26101995":"04A","IT26101464":"04A","IT26101722":"04A","IT26100189":"04A","IT26101793":"04A","IT26101258":"04A","IT26101719":"04A","IT26101306":"04A","IT26101617":"04A","IT26101342":"04A","IT26101765":"04A","IT26101300":"04A","IT26101752":"04A","IT26101263":"04A","IT26101305":"04A","IT26101276":"04A","IT26101685":"04A","IT26101397":"04A","IT26101450":"04B","IT26101267":"04B","IT26101753":"04B","IT26101418":"04B","IT26101745":"04B","IT26101694":"04B","IT26101755":"04B","IT26101442":"04B","IT26101817":"04B","IT26100122":"04B","IT26101776":"04B","IT26101451":"04B","IT26101575":"04B","IT26102182":"04B","IT26102196":"04B","IT26101288":"04B","IT26101385":"04B","IT26101760":"04B","IT26101304":"04B","IT26101723":"04B","IT26101633":"04B","IT26101458":"04B","IT26101290":"04B","IT26101375":"04B","IT26101492":"04B","IT26101477":"04B","IT26102178":"04B","IT26102188":"04B","IT26102232":"04B","IT26101423":"04C","IT26101729":"04C","IT26101387":"04C","IT26101289":"04C","IT26101926":"04C","IT26101298":"04C","IT26101730":"04C","IT26101309":"04C","IT26102101":"04C","IT26102190":"04C","IT26102197":"04C","IT26102212":"04C","IT26101965":"04C","IT26101875":"04D","IT26101785":"04D","IT26101327":"04D","IT26101483":"04D","IT26101281":"04D","IT26101366":"04D","IT26101747":"04D","IT26101532":"04D","IT26101708":"04D","IT26101749":"04D","IT26101759":"04D","IT26101764":"04D","IT26101758":"04D","IT26101310":"04D"};
 const AI_SESSION_TIMEOUT = 30 * 60 * 1000;
 setInterval(() => {
     const now = Date.now();
@@ -1013,6 +1017,51 @@ async function processMessage(jid, msg, body) {
 
         if (isBanned(sid)) { console.log(`🚫 Banned user: ${jidNum(sid)}`); return; }
 
+        // ── QUIZ ANSWER HANDLER — captures the reply to an active quiz ───────────
+        if (quizSessions.has(sid) && !['QUIZ','PRACTICE','Q','MYEAC','EAC','ASK','AI','HELP','HI','HELLO','START','MENU','MYINFO','SETAI','USEAI','ENDCHAT','LANG'].includes(cmd)) {
+            const qs = quizSessions.get(sid);
+            const userAns = body.trim();
+            const lang = getLang(sid);
+            quizSessions.delete(sid);
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *Checking your answer...*`));
+            try {
+                const checkPrompt = `Quiz Question: "${qs.question}"
+Correct Answer: "${qs.answer}"
+Student's Answer: "${userAns}"
+Category: ${qs.category}
+
+Evaluate if the student's answer is correct (accept reasonable variations).
+Reply in this exact format:
+RESULT: CORRECT or WRONG
+EXPLANATION: [2-3 sentences explaining why the answer is correct/wrong, what the right answer is, and a helpful tip]`;
+                const result = await prov.call(checkPrompt, 'You are a strict but encouraging teacher. Evaluate student answers fairly.', [], 350);
+                const isCorrect = result.toUpperCase().includes('RESULT: CORRECT');
+                const explanation = result.replace(/RESULT:[^\n]*/i, '').replace(/EXPLANATION:/i, '').trim();
+                const emoji = isCorrect ? '✅' : '❌';
+                const feedback = isCorrect
+                    ? (lang==='si' ? '🎉 *නිවැරදියි!*' : '🎉 *Correct! Well done!*')
+                    : (lang==='si' ? `❌ *වැරදියි.*\n\n✅ *නිවැරදි පිළිතුර:* ${qs.answer}` : `❌ *Not quite right.*\n\n✅ *Correct answer:* ${qs.answer}`);
+                await reply(withFooter([
+                    `${emoji} *Quiz Result*`,
+                    ``,
+                    `❓ *Question:* ${qs.question}`,
+                    `💬 *Your answer:* ${userAns}`,
+                    ``,
+                    feedback,
+                    ``,
+                    `📖 *Explanation:*`,
+                    explanation,
+                    ``,
+                    `_Send *QUIZ* for another question!_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Quiz check error:', e.message);
+                await reply(withFooter(`❌ Could not check your answer. Try sending *QUIZ* for a new question.`));
+            }
+            return;
+        }
+
         // ── ENDCHAT ───────────────────────────────────────────────────────
         if (body.trim().toUpperCase() === 'ENDCHAT') {
             const lang = getLang(sid);
@@ -1047,7 +1096,7 @@ New session: *ASK <question>*`
             await reply(withFooter(`⏳ *${prov.emoji} ${prov.name} is thinking...*`));
             try {
                 const sys = `You are a helpful academic assistant for SLIIT Year 1 Semester 1 students. Student: ${stuName}. Keep answers clear under 350 words. Use backticks for code. Reply in Sinhala if asked in Sinhala.`;
-                const answer = await prov.call(question, sys, history.slice(-6));
+                const answer = await prov.call(question, sys, history.slice(-8), 900);
                 history.push({ role: 'assistant', content: answer });
                 aiConversations.set(sid, { history: history.slice(-10), lastActivity: Date.now(), providerKey: provKey });
                 const turn = Math.floor(history.length/2);
@@ -1120,6 +1169,7 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                     `*MYINFO*          📋 Your student profile`,
                     `*MYGROUPS*        📊 Timetable & group info`,
                     `*MYLINK*          🔗 Your WhatsApp group link`,
+                    `*MYEAC*           📚 Your EAC group info`,
                     `*CLASSMATES*      👥 See your groupmates`,
                     `*JOINGROUP WD01*  🏘️ Get any group link`,
                     ``,
@@ -1157,6 +1207,16 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                     `*VIDEO <topic>*        🎬 Find tutorials`,
                     `  e.g. VIDEO database normalization`,
                     ``,
+                    `━━━━ 🎯 *Quiz & Practice* ━━━━`,
+                    ``,
+                    `*QUIZ*            🎯 Random quiz question`,
+                    `*QUIZ english*    📝 English grammar quiz`,
+                    `*QUIZ ielts*      🎓 IELTS practice`,
+                    `*QUIZ java*       ☕ Java quiz`,
+                    `*QUIZ python*     🐍 Python quiz`,
+                    `*QUIZ coding*     💻 Coding concepts`,
+                    `  💬 Just reply with your answer!`,
+                    ``,
                     `━━━━ 🌐 *Language* ━━━━`,
                     ``,
                     `*LANG SI*  🇱🇰 Sinhala`,
@@ -1184,6 +1244,7 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                     `*MYINFO*          📋 Your student profile`,
                     `*MYGROUPS*        📊 Timetable & group info`,
                     `*MYLINK*          🔗 Your WhatsApp group link`,
+                    `*MYEAC*           📚 Your EAC group info`,
                     `*CLASSMATES*      👥 See your groupmates`,
                     `*JOINGROUP WD01*  🏘️ Get any group link`,
                     ``,
@@ -1211,6 +1272,15 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                     `*IMAGE <description>*  🖼️ AI image`,
                     `*SLIDES <topic>*       📊 AI presentation`,
                     `*VIDEO <topic>*        🎬 Find tutorials`,
+                    ``,
+                    `━━━━ 🎯 *Quiz & Practice* ━━━━`,``,
+                    `*QUIZ*            🎯 Random quiz question`,
+                    `*QUIZ english*    📝 English grammar quiz`,
+                    `*QUIZ ielts*      🎓 IELTS practice`,
+                    `*QUIZ java*       ☕ Java quiz`,
+                    `*QUIZ python*     🐍 Python quiz`,
+                    `*QUIZ coding*     💻 Coding concepts`,
+                    `  💬 Just reply with your answer!`,
                     ``,
                     `━━━━ 🌐 *Language* ━━━━`,``,
                     `*LANG SI*  🇱🇰 Sinhala`,
@@ -1241,13 +1311,30 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                 ? `⏳ *AI Image හදනවා...*\n\n"${prompt.slice(0,50)}"\n\nරැඳී සිටින්න! (10-20s)`
                 : `⏳ *Generating AI Image...*\n\n"${prompt.slice(0,50)}"\n\nPlease wait (10-20s)!`
             ));
-            try {
-                const encodedPrompt = encodeURIComponent(prompt + ', high quality, detailed');
-                const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600&nologo=true&seed=${Date.now()}`;
-                const resp = await fetch(imageUrl, { signal: AbortSignal.timeout(25000) });
+            const fetchImage = async (seed) => {
+                const encodedPrompt = encodeURIComponent(prompt + ', high quality, detailed, digital art');
+                const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600&nologo=true&model=flux&seed=${seed}`;
+                const resp = await fetch(imageUrl, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SLIITBot/1.0)' },
+                    signal: AbortSignal.timeout(45000)
+                });
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const contentType = resp.headers.get('content-type') || '';
                 const buffer = Buffer.from(await resp.arrayBuffer());
-                if (buffer.length < 1000) throw new Error('Image too small');
+                if (!contentType.startsWith('image/') || buffer.length < 2000) {
+                    throw new Error(`Bad response (type=${contentType}, size=${buffer.length})`);
+                }
+                return buffer;
+            };
+            try {
+                let buffer;
+                try {
+                    buffer = await fetchImage(Date.now());
+                } catch (e1) {
+                    console.warn('Image attempt 1 failed:', e1.message, '— retrying...');
+                    await sleep(1500);
+                    buffer = await fetchImage(Date.now() + 1);
+                }
                 await directSend(sid, {
                     image: buffer,
                     caption: withFooter(lang==='si'
@@ -1258,8 +1345,8 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
             } catch(e) {
                 console.error('Image error:', e.message);
                 await reply(withFooter(lang==='si'
-                    ? '❌ *Image generate නොහැකිය.*\n\nනැවත try කරන්න.'
-                    : '❌ *Could not generate image.*\n\nTry again with simpler description.'
+                    ? '❌ *Image generate කිරීමට අසමත් විය.*\n\nසේවාව තාවකාලිකව busy විය හැක. ස්වල්ප වෙලාවකින් නැවත try කරන්න, හෝ description එක සරල කරන්න.'
+                    : '❌ *Could not generate the image right now.*\n\nThe image service may be busy. Try again in a moment, or use a simpler description.'
                 ));
             }
             return;
@@ -1337,7 +1424,7 @@ Use this EXACT format for each slide:
 - Q&A
 
 Keep bullets under 8 words each. Make it professional.`;
-                const answer = await prov.call(prompt, sys, []);
+                const answer = await prov.call(prompt, sys, [], 1800);
                 if (answer.length > 3800) {
                     const mid = answer.lastIndexOf('📑', Math.floor(answer.length/2));
                     const splitAt = mid > 100 ? mid : Math.floor(answer.length/2);
@@ -1405,6 +1492,110 @@ Keep bullets under 8 words each. Make it professional.`;
             return;
         }
 
+        // ── MYEAC — Show EAC (English for Academic Communication) group info ────
+        if (cmd === 'MYEAC' || cmd === 'EAC') {
+            const lang = getLang(sid);
+            const reg = db.registrations[sid];
+            if (!reg) { await reply(withFooter(lang==='si'?'⚠️ ලියාපදිංචි වී නැත. *REG IT26XXXXXX* යවන්න.':'⚠️ Not registered. Send *REG IT26XXXXXX* first.')); return; }
+            const eacGroup = EAC_GROUPS[reg];
+            if (!eacGroup) { await reply(withFooter(`⚠️ No EAC group found for *${reg}*. Contact admin.`)); return; }
+            const ttNum  = eacGroup.slice(0,2);
+            const subGrp = eacGroup.slice(2);
+            await reply(withFooter([
+                `╔══════════════════════════╗`,
+                `  📚 *EAC Group Info*`,
+                `╚══════════════════════════╝`,
+                ``,
+                `🆔 Student:     *${reg}*`,
+                ``,
+                `📋 *EAC Group:*  ${eacGroup}`,
+                `📌 *Class Name:* Y1.S1.WD.IT.${ttNum}.${subGrp}`,
+                `📚 *Subject:*    English for Academic Communication`,
+                ``,
+                `💡 Your EAC class is in Group *${eacGroup}*`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── QUIZ — Daily practice questions (AI generated) ───────────────────────
+        if (cmd === 'QUIZ' || cmd === 'PRACTICE' || cmd === 'Q') {
+            const lang = getLang(sid);
+            const category = (arg1||'').toLowerCase();
+            const categories = ['english','grammar','ielts','speaking','java','python','html','coding','pseudo','all'];
+            if (category && !categories.includes(category)) {
+                await reply(withFooter([
+                    `╔══════════════════════════╗`,
+                    `  🎯 *Quiz Categories*`,
+                    `╚══════════════════════════╝`,
+                    ``,
+                    `*QUIZ english*   📝 English grammar`,
+                    `*QUIZ ielts*     🎓 IELTS preparation`,
+                    `*QUIZ speaking*  🗣️ Speaking skills`,
+                    `*QUIZ java*      ☕ Java programming`,
+                    `*QUIZ python*    🐍 Python programming`,
+                    `*QUIZ html*      🌐 HTML/CSS/Web`,
+                    `*QUIZ coding*    💻 General coding`,
+                    `*QUIZ pseudo*    📋 Pseudocode/Logic`,
+                    `*QUIZ all*       🎲 Random category`,
+                    ``,
+                    `_Just send *QUIZ* for a random question!_`,
+                ].join('\n')));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Generating quiz question...*`));
+            try {
+                const cat = category || 'all';
+                const catMap = {
+                    english: 'English grammar (fill in the blank, correct the sentence, or choose the right word)',
+                    grammar: 'English grammar rules and usage',
+                    ielts: 'IELTS exam preparation (vocabulary, reading comprehension, or writing task)',
+                    speaking: 'English speaking and communication skills',
+                    java: 'Java programming (syntax, OOP, data structures)',
+                    python: 'Python programming (syntax, functions, data structures)',
+                    html: 'HTML, CSS, or basic web development',
+                    coding: 'Programming concepts (algorithms, debugging, logic)',
+                    pseudo: 'Pseudocode writing or algorithm logic',
+                    all: 'any of: English grammar, IELTS, Java, Python, HTML, or programming concepts',
+                };
+                const catDesc = catMap[cat] || catMap.all;
+                const prompt = `Create ONE quiz question about: ${catDesc}
+For SLIIT Year 1 university students.
+
+Reply in EXACTLY this format (no extra text):
+QUESTION: [the question - make it clear and specific]
+ANSWER: [the correct answer - be concise]
+CATEGORY: [${cat === 'all' ? 'detected category' : cat}]
+DIFFICULTY: [easy/medium/hard]`;
+                const result = await prov.call(prompt, 'You are a university quiz creator. Create clear, educational questions.', [], 350);
+                const qMatch    = result.match(/QUESTION:\s*(.+)/i);
+                const aMatch    = result.match(/ANSWER:\s*(.+)/i);
+                const catMatch  = result.match(/CATEGORY:\s*(.+)/i);
+                const diffMatch = result.match(/DIFFICULTY:\s*(.+)/i);
+                if (!qMatch || !aMatch) throw new Error('Bad format');
+                const question = qMatch[1].trim();
+                const answer = aMatch[1].trim();
+                const detectedCat = (catMatch?.[1]?.trim() || cat).replace(/[\[\]]/g, '');
+                const difficulty  = (diffMatch?.[1]?.trim() || 'medium').replace(/[\[\]]/g, '');
+                quizSessions.set(sid, { question, answer, category: detectedCat, asked: Date.now() });
+                const diffEmoji = difficulty.toLowerCase().includes('easy') ? '🟢' : difficulty.toLowerCase().includes('hard') ? '🔴' : '🟡';
+                await reply(withFooter([
+                    `🎯 *Quiz Time!*`,
+                    ``,
+                    `📚 Category: *${detectedCat.toUpperCase()}*  ${diffEmoji} ${difficulty}`,
+                    ``,
+                    `❓ *${question}*`,
+                    ``,
+                    `_Reply with your answer!_`,
+                    `_Send *QUIZ* to skip & get a new question_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Quiz error:', e.message);
+                await reply(withFooter('❌ Could not generate a question. Try *QUIZ english* or *QUIZ java*.'));
+            }
+            return;
+        }
+
         // ── ASK — AI with conversation memory ───────────────────────────────────
         if (cmd === 'ASK' || cmd === 'AI') {
             const lang = getLang(sid);
@@ -1430,7 +1621,7 @@ Keep bullets under 8 words each. Make it professional.`;
             ));
             try {
                 const sys = `You are a helpful academic assistant for SLIIT Year 1 Semester 1 students. Student: ${stuName}. Answer questions about programming, databases, maths, IT concepts. Keep answers clear under 350 words. Format code with backticks. Reply in Sinhala if asked in Sinhala.`;
-                const answer = await prov.call(question, sys, session.history.slice(-8));
+                const answer = await prov.call(question, sys, session.history.slice(-8), 900);
                 session.history.push({ role: 'assistant', content: answer });
                 aiConversations.set(sid, { ...session, history: session.history.slice(-10) });
                 const turn = Math.floor(session.history.length/2);
