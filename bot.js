@@ -1311,29 +1311,54 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                 ? `⏳ *AI Image හදනවා...*\n\n"${prompt.slice(0,50)}"\n\nරැඳී සිටින්න! (10-20s)`
                 : `⏳ *Generating AI Image...*\n\n"${prompt.slice(0,50)}"\n\nPlease wait (10-20s)!`
             ));
-            const fetchImage = async (seed) => {
+            // Primary: Hugging Face free Inference API (needs HF_API_KEY env var)
+            const fetchImageHF = async () => {
+                const hfKey = process.env.HF_API_KEY || '';
+                if (!hfKey) throw new Error('No HF_API_KEY configured');
+                const model = 'stabilityai/stable-diffusion-xl-base-1.0';
+                const resp = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + hfKey,
+                        'Content-Type': 'application/json',
+                        'Accept': 'image/png'
+                    },
+                    body: JSON.stringify({ inputs: prompt + ', high quality, detailed, digital art' }),
+                    signal: AbortSignal.timeout(60000)
+                });
+                const contentType = resp.headers.get('content-type') || '';
+                if (!resp.ok || !contentType.startsWith('image/')) {
+                    let detail = '';
+                    try { detail = JSON.stringify(await resp.json()); } catch(_) {}
+                    throw new Error(`HF HTTP ${resp.status} ${detail}`);
+                }
+                const buffer = Buffer.from(await resp.arrayBuffer());
+                if (buffer.length < 2000) throw new Error('HF image too small');
+                return buffer;
+            };
+            // Fallback: Pollinations free anonymous tier (no seed/nologo — those now require payment)
+            const fetchImagePollinations = async () => {
                 const encodedPrompt = encodeURIComponent(prompt + ', high quality, detailed, digital art');
-                const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600&nologo=true&model=flux&seed=${seed}`;
+                const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600`;
                 const resp = await fetch(imageUrl, {
                     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SLIITBot/1.0)' },
                     signal: AbortSignal.timeout(45000)
                 });
-                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                if (!resp.ok) throw new Error(`Pollinations HTTP ${resp.status}`);
                 const contentType = resp.headers.get('content-type') || '';
                 const buffer = Buffer.from(await resp.arrayBuffer());
                 if (!contentType.startsWith('image/') || buffer.length < 2000) {
-                    throw new Error(`Bad response (type=${contentType}, size=${buffer.length})`);
+                    throw new Error(`Pollinations bad response (type=${contentType}, size=${buffer.length})`);
                 }
                 return buffer;
             };
             try {
                 let buffer;
                 try {
-                    buffer = await fetchImage(Date.now());
+                    buffer = await fetchImageHF();
                 } catch (e1) {
-                    console.warn('Image attempt 1 failed:', e1.message, '— retrying...');
-                    await sleep(1500);
-                    buffer = await fetchImage(Date.now() + 1);
+                    console.warn('HF image failed:', e1.message, '— trying Pollinations fallback...');
+                    buffer = await fetchImagePollinations();
                 }
                 await directSend(sid, {
                     image: buffer,
