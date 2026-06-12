@@ -1315,8 +1315,8 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
             const fetchImageHF = async () => {
                 const hfKey = process.env.HF_API_KEY || '';
                 if (!hfKey) throw new Error('No HF_API_KEY configured');
-                const model = 'stabilityai/stable-diffusion-xl-base-1.0';
-                const resp = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+                const model = 'black-forest-labs/FLUX.1-schnell';
+                const resp = await fetch(`https://router.huggingface.co/hf-inference/models/${model}`, {
                     method: 'POST',
                     headers: {
                         'Authorization': 'Bearer ' + hfKey,
