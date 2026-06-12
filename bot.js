@@ -42,6 +42,41 @@ const AI_PROVIDERS = {
     mistral:{ name: 'Mistral Saba',   emoji: '⚡', call: async (q,s,h,mt) => callGroq('mistral-saba-24b', q, s, h, mt) },
     deepseek:{ name: 'DeepSeek R1',   emoji: '🔬', call: async (q,s,h,mt) => callGroq('deepseek-r1-distill-llama-70b', q, s, h, mt) }
 };
+const QUIZ_CATEGORY_MAP = {
+    english: 'English grammar (fill in the blank, correct the sentence, or choose the right word)',
+    grammar: 'English grammar rules and usage',
+    ielts: 'IELTS exam preparation (vocabulary, reading comprehension, or writing task)',
+    speaking: 'English speaking and communication skills',
+    java: 'Java programming (syntax, OOP, data structures)',
+    python: 'Python programming (syntax, functions, data structures)',
+    html: 'HTML, CSS, or basic web development',
+    coding: 'Programming concepts (algorithms, debugging, logic)',
+    pseudo: 'Pseudocode writing or algorithm logic',
+    all: 'any of: English grammar, IELTS, Java, Python, HTML, or programming concepts',
+};
+async function generateQuizQuestion(prov, cat) {
+    const catDesc = QUIZ_CATEGORY_MAP[cat] || QUIZ_CATEGORY_MAP.all;
+    const prompt = `Create ONE quiz question about: ${catDesc}
+For SLIIT Year 1 university students.
+
+Reply in EXACTLY this format (no extra text):
+QUESTION: [the question - make it clear and specific]
+ANSWER: [the correct answer - be concise]
+CATEGORY: [${cat === 'all' ? 'detected category' : cat}]
+DIFFICULTY: [easy/medium/hard]`;
+    const result = await prov.call(prompt, 'You are a university quiz creator. Create clear, educational questions.', [], 350);
+    const qMatch    = result.match(/QUESTION:\s*(.+)/i);
+    const aMatch    = result.match(/ANSWER:\s*(.+)/i);
+    const catMatch  = result.match(/CATEGORY:\s*(.+)/i);
+    const diffMatch = result.match(/DIFFICULTY:\s*(.+)/i);
+    if (!qMatch || !aMatch) throw new Error('Bad format');
+    return {
+        question: qMatch[1].trim(),
+        answer: aMatch[1].trim(),
+        category: (catMatch?.[1]?.trim() || cat).replace(/[\[\]]/g, ''),
+        difficulty: (diffMatch?.[1]?.trim() || 'medium').replace(/[\[\]]/g, ''),
+    };
+}
 function getAIProvider(jid) {
     const p = db.aiProvider && db.aiProvider[jid];
     if (p && AI_PROVIDERS[p]) return p;
@@ -93,7 +128,8 @@ const store = { contacts: {}, loadMessage: async () => null, bind: () => {} };
 // LID → phone JID map, populated from contacts.upsert events
 const lidToPhone = new Map();
 const aiConversations = new Map();
-const quizSessions = new Map(); // jid → { question, answer, category, asked }
+const quizSessions = new Map(); // jid → { question, answer, category, asked, setInfo? }
+const pomodoroTimers = new Map(); // jid → { workTimeout, breakTimeout }
 
 // ─── EAC GROUPING DATA (English for Academic Communication) ─────────────────
 const EAC_GROUPS = {"IT25101376":"01A","IT26101585":"01A","IT26100489":"01A","IT26102176":"01A","IT26101615":"01A","IT26101987":"01A","IT26101590":"01A","IT26102097":"01A","IT26102008":"01A","IT26101409":"01A","IT26101393":"01A","IT26101328":"01A","IT26102047":"01A","IT26101657":"01A","IT26101358":"01A","IT26102042":"01A","IT26101614":"01A","IT26101675":"01A","IT26101571":"01A","IT26101737":"01A","IT26101238":"01A","IT26101610":"01A","IT26101602":"01A","IT26101600":"01A","IT26101204":"01A","IT26101744":"01A","IT26101467":"01A","IT26101576":"01A","IT26101805":"01A","IT26101797":"01A","IT26100013":"01A","IT26101901":"01B","IT26101607":"01B","IT26101332":"01B","IT26101985":"01B","IT26102103":"01B","IT26300138":"01B","IT26101228":"01B","IT26101260":"01B","IT26101579":"01B","IT26101284":"01B","IT26101331":"01B","IT26101673":"01B","IT26101992":"01B","IT26102059":"01B","IT26101620":"01B","IT26102002":"01B","IT26101235":"01B","IT26101241":"01B","IT26101629":"01B","IT26200849":"01B","IT26102055":"01B","IT26101893":"01B","IT26101444":"01B","IT26102037":"01B","IT26102018":"01B","IT26101384":"01B","IT26102004":"01B","IT26101589":"01B","IT26101455":"01B","IT26101880":"01B","IT26101333":"01C","IT26101700":"01C","IT26102045":"01C","IT26100956":"01C","IT26101323":"01C","IT26102105":"01C","IT26101691":"01C","IT26101262":"01C","IT26101316":"01C","IT26100944":"01C","IT26101626":"01C","IT26101236":"01C","IT26101237":"01C","IT26101983":"01C","IT26101674":"01C","IT26101688":"01C","IT26101443":"01C","IT26101678":"01C","IT26102031":"01C","IT26100212":"01C","IT26101448":"01C","IT26101651":"01C","IT26101245":"01C","IT26101704":"01C","IT26101990":"01C","IT26101259":"01C","IT26101611":"01C","IT26101642":"01C","IT26101244":"01D","IT26101888":"01D","IT26101129":"01D","IT26101643":"01D","IT26101210":"01D","IT26102104":"01D","IT26101507":"01D","IT26101266":"01D","IT26102041":"01D","IT26101682":"01D","IT26101597":"01D","IT26101672":"01D","IT26102102":"01D","IT26101680":"01D","IT26101697":"01D","IT26101291":"01D","IT26101242":"01D","IT26101454":"01D","IT26101738":"01D","IT26101632":"01D","IT26101997":"01D","IT26101972":"01D","IT26100573":"01D","IT26101367":"02A","IT26101382":"02A","IT26101318":"02A","IT26102144":"02A","IT26101742":"02A","IT26101363":"02A","IT26101512":"02A","IT26101898":"02A","IT26101530":"02A","IT26101522":"02A","IT26101484":"02A","IT26101892":"02A","IT26101735":"02A","IT26101912":"02A","IT26101523":"02A","IT26101946":"02A","IT26101247":"02A","IT26101432":"02A","IT26101301":"02A","IT26101870":"02A","IT26102015":"02A","IT26102107":"02A","IT26102076":"02A","IT26101430":"02A","IT26102017":"02A","IT26102023":"02A","IT26101365":"02A","IT26101490":"02A","IT26101268":"02A","IT26101250":"02A","IT26100718":"02B","IT26101955":"02B","IT26102116":"02B","IT26200228":"02B","IT26101524":"02B","IT26101962":"02B","IT26101628":"02B","IT26101324":"02B","IT26101353":"02B","IT26101801":"02B","IT26102141":"02B","IT26101531":"02B","IT26101889":"02B","IT26101453":"02B","IT26101964":"02B","IT26101658":"02B","IT26101369":"02B","IT26101370":"02B","IT26101319":"02B","IT26101225":"02B","IT26101340":"02B","IT26101337":"02B","IT26101942":"02B","IT26101427":"02B","IT26101469":"02B","IT26101789":"02B","IT26101230":"02B","IT26101953":"02B","IT26101344":"02B","IT26101465":"02B","IT26101639":"02C","IT26101660":"02C","IT26101456":"02C","IT26101285":"02C","IT26101275":"02C","IT26101806":"02C","IT26101528":"02C","IT26101533":"02C","IT26101956":"02C","IT26102112":"02C","IT26101570":"02C","IT26101214":"02C","IT26101223":"02C","IT26101401":"02C","IT26102106":"02C","IT26101313":"02C","IT26101787":"02C","IT26101802":"02C","IT26102113":"02C","IT26101295":"02C","IT26102110":"02C","IT26102108":"02C","IT26101479":"02C","IT26102012":"02C","IT26101716":"02C","IT26101272":"02C","IT26101277":"02C","IT26102114":"02C","IT26102039":"02C","IT26101525":"02D","IT26101520":"02D","IT26101513":"02D","IT26101351":"02D","IT26102115":"02D","IT26101299":"02D","IT26101334":"02D","IT26102150":"02D","IT26101470":"02D","IT26101438":"02D","IT26101421":"02D","IT26101809":"02D","IT26101526":"02D","IT26101482":"02D","IT26102149":"02D","IT26102065":"02D","IT26101822":"02D","IT26101491":"02D","IT26101480":"02D","IT26101349":"02D","IT26102046":"02D","IT26102109":"02D","IT26101362":"02D","IT26101496":"02D","IT26101750":"02D","IT26101212":"02D","IT26102030":"02D","IT26101508":"02D","IT26101795":"02D","IT26101372":"03A","IT26101293":"03A","IT26101646":"03A","IT26101618":"03A","IT26102021":"03A","IT26101966":"03A","IT26101720":"03A","IT26101891":"03A","IT26100262":"03A","IT26102019":"03A","IT26101996":"03A","IT26101968":"03A","IT26101662":"03A","IT26101420":"03A","IT26101355":"03A","IT26101303":"03A","IT26101655":"03A","IT26101568":"03A","IT26101932":"03A","IT26101373":"03A","IT26102003":"03A","IT26101488":"03A","IT26101919":"03A","IT26101248":"03A","IT26101900":"03A","IT26101941":"03A","IT26101950":"03A","IT26101604":"03A","IT26101389":"03A","IT26101812":"03A","IT26102142":"03B","IT26101917":"03B","IT26101743":"03B","IT26101696":"03B","IT26101935":"03B","IT26101954":"03B","IT26100693":"03B","IT26101622":"03B","IT26102034":"03B","IT26101690":"03B","IT26101770":"03B","IT26102058":"03B","IT26101428":"03B","IT26102032":"03B","IT26101631":"03B","IT26101929":"03B","IT26101322":"03B","IT26101807":"03B","IT26101573":"03B","IT26101361":"03B","IT26101577":"03B","IT26200749":"03B","IT26101297":"03B","IT26102127":"03B","IT26101599":"03B","IT26450013":"03B","IT26101414":"03B","IT26101958":"03B","IT26101498":"03B","IT26101398":"03B","IT26101412":"03C","IT26101984":"03C","IT26101908":"03C","IT26101417":"03C","IT26101474":"03C","IT26300323":"03C","IT26101625":"03C","IT26101410":"03C","IT26100543":"03C","IT26101725":"03C","IT26101406":"03C","IT26101635":"03C","IT26101364":"03C","IT26101429":"03C","IT26102075":"03C","IT26101803":"03C","IT26101582":"03C","IT26101653":"03C","IT26101377":"03C","IT26101978":"03C","IT26101203":"03C","IT26101796":"03C","IT26101936":"03C","IT26102111":"03C","IT26101904":"03C","IT26101825":"03C","IT26101913":"03C","IT26101494":"03C","IT26101613":"03C","IT26101823":"03D","IT26102143":"03D","IT26101400":"03D","IT26101434":"03D","IT26101980":"03D","IT26101986":"03D","IT26100739":"03D","IT26102048":"03D","IT26100407":"03D","IT26102148":"03D","IT26101317":"03D","IT26101883":"03D","IT26101925":"03D","IT26101379":"03D","IT26101606":"03D","IT26101909":"03D","IT26101619":"03D","IT26101595":"03D","IT26101376":"03D","IT26101882":"03D","IT26101767":"03D","IT26101937":"03D","IT26101222":"03D","IT26101475":"04A","IT26101396":"04A","IT26101307":"04A","IT26101495":"04A","IT26101407":"04A","IT26101995":"04A","IT26101464":"04A","IT26101722":"04A","IT26100189":"04A","IT26101793":"04A","IT26101258":"04A","IT26101719":"04A","IT26101306":"04A","IT26101617":"04A","IT26101342":"04A","IT26101765":"04A","IT26101300":"04A","IT26101752":"04A","IT26101263":"04A","IT26101305":"04A","IT26101276":"04A","IT26101685":"04A","IT26101397":"04A","IT26101450":"04B","IT26101267":"04B","IT26101753":"04B","IT26101418":"04B","IT26101745":"04B","IT26101694":"04B","IT26101755":"04B","IT26101442":"04B","IT26101817":"04B","IT26100122":"04B","IT26101776":"04B","IT26101451":"04B","IT26101575":"04B","IT26102182":"04B","IT26102196":"04B","IT26101288":"04B","IT26101385":"04B","IT26101760":"04B","IT26101304":"04B","IT26101723":"04B","IT26101633":"04B","IT26101458":"04B","IT26101290":"04B","IT26101375":"04B","IT26101492":"04B","IT26101477":"04B","IT26102178":"04B","IT26102188":"04B","IT26102232":"04B","IT26101423":"04C","IT26101729":"04C","IT26101387":"04C","IT26101289":"04C","IT26101926":"04C","IT26101298":"04C","IT26101730":"04C","IT26101309":"04C","IT26102101":"04C","IT26102190":"04C","IT26102197":"04C","IT26102212":"04C","IT26101965":"04C","IT26101875":"04D","IT26101785":"04D","IT26101327":"04D","IT26101483":"04D","IT26101281":"04D","IT26101366":"04D","IT26101747":"04D","IT26101532":"04D","IT26101708":"04D","IT26101749":"04D","IT26101759":"04D","IT26101764":"04D","IT26101758":"04D","IT26101310":"04D"};
@@ -1020,7 +1056,7 @@ async function processMessage(jid, msg, body) {
         if (isBanned(sid)) { console.log(`🚫 Banned user: ${jidNum(sid)}`); return; }
 
         // ── QUIZ ANSWER HANDLER — captures the reply to an active quiz ───────────
-        if (quizSessions.has(sid) && !['QUIZ','PRACTICE','Q','MYEAC','EAC','ASK','AI','HELP','HI','HELLO','START','MENU','MYINFO','SETAI','USEAI','ENDCHAT','LANG','LEADERBOARD','LB','TOP','MYSTATS','STATS','SUMMARIZE','SUMMARY','TLDR','TRANSLATE','TR','EXPLAIN','ELI5','IMAGE','IMG','IMAGINE','SLIDES','PPT','PRESENTATION','VIDEO','YT','YOUTUBE'].includes(cmd)) {
+        if (quizSessions.has(sid) && !['QUIZ','PRACTICE','Q','MYEAC','EAC','ASK','AI','HELP','HI','HELLO','START','MENU','MYINFO','SETAI','USEAI','ENDCHAT','LANG','LEADERBOARD','LB','TOP','MYSTATS','STATS','SUMMARIZE','SUMMARY','TLDR','TRANSLATE','TR','EXPLAIN','ELI5','IMAGE','IMG','IMAGINE','SLIDES','PPT','PRESENTATION','VIDEO','YT','YOUTUBE','FLASHCARDS','CARDS','FC','DEFINE','DEF','WHATIS','CODE','DEBUG','GRAMMAR','CHECK','FIX','FACT','TECHFACT','POMODORO','TIMER','FOCUS'].includes(cmd)) {
             const qs = quizSessions.get(sid);
             const userAns = body.trim();
             const lang = getLang(sid);
@@ -1062,6 +1098,62 @@ EXPLANATION: [2-3 sentences explaining why the answer is correct/wrong, what the
                 const streakLine = isCorrect && stats.streak > 1
                     ? `🔥 *Streak: ${stats.streak} in a row!*\n\n`
                     : '';
+                // ── Scored quiz SET continuation ─────────────────────────────────
+                if (qs.setInfo) {
+                    const set = qs.setInfo;
+                    if (isCorrect) set.score++;
+                    const qNum = set.total - set.remaining;
+                    const resultLines = [
+                        `${emoji} *Question ${qNum}/${set.total}*`,
+                        ``,
+                        `❓ ${qs.question}`,
+                        `💬 Your answer: ${userAns}`,
+                        ``,
+                        feedback,
+                        ``,
+                        `📖 ${explanation}`,
+                    ];
+                    if (set.remaining > 0) {
+                        try {
+                            const nextQ = await generateQuizQuestion(prov, set.category);
+                            quizSessions.set(sid, {
+                                question: nextQ.question, answer: nextQ.answer, category: nextQ.category, asked: Date.now(),
+                                setInfo: { category: set.category, remaining: set.remaining - 1, score: set.score, total: set.total }
+                            });
+                            const diffEmoji = nextQ.difficulty.toLowerCase().includes('easy') ? '🟢' : nextQ.difficulty.toLowerCase().includes('hard') ? '🔴' : '🟡';
+                            resultLines.push(
+                                ``,
+                                `━━━━━━━━━━━━━━━━━━━━`,
+                                `📋 *Question ${qNum+1}/${set.total}*  ${diffEmoji} ${nextQ.difficulty}`,
+                                ``,
+                                `❓ *${nextQ.question}*`,
+                                ``,
+                                `_Reply with your answer!_`,
+                            );
+                        } catch(e2) {
+                            console.error('Quiz set next-question error:', e2.message);
+                            resultLines.push(``, `⚠️ Could not generate the next question. Send *QUIZ* to try again.`);
+                            quizSessions.delete(sid);
+                        }
+                    } else {
+                        const pct = Math.round((set.score / set.total) * 100);
+                        const grade = pct >= 80 ? '🏆 Excellent!' : pct >= 60 ? '👍 Good job!' : pct >= 40 ? '💪 Keep practicing!' : '📚 More practice needed!';
+                        resultLines.push(
+                            ``,
+                            `╔══════════════════════════╗`,
+                            `  🎉 *Quiz Set Complete!*`,
+                            `╚══════════════════════════╝`,
+                            ``,
+                            `📊 *Final Score: ${set.score}/${set.total} (${pct}%)*`,
+                            grade,
+                            ``,
+                            `_Send *LEADERBOARD* to see rankings, or *QUIZ ${set.category} ${set.total}* to try again!_`,
+                        );
+                    }
+                    await reply(withFooter(resultLines.join('\n')));
+                    return;
+                }
+
                 await reply(withFooter([
                     `${emoji} *Quiz Result*`,
                     ``,
@@ -1240,6 +1332,226 @@ TEXT: ${text}`;
             return;
         }
 
+        // ── FLASHCARDS — AI generated study flashcards ───────────────────────────
+        if (cmd === 'FLASHCARDS' || cmd === 'CARDS' || cmd === 'FC') {
+            const lang = getLang(sid);
+            const rest = body.replace(/^(FLASHCARDS|CARDS|FC)\s*/i, '').trim();
+            if (!rest) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *මාතෘකාවක් දෙන්න.*\n\nඋදා: *FLASHCARDS OOP concepts*\nඋදා: *FLASHCARDS networking 8*'
+                    : '❌ *Give me a topic.*\n\nExample: *FLASHCARDS OOP concepts*\nExample: *FLASHCARDS networking 8* (custom count)'));
+                return;
+            }
+            const m = rest.match(/^(.*?)\s+(\d{1,2})$/);
+            const topic = (m ? m[1] : rest).trim();
+            let count = m ? parseInt(m[2], 10) : 5;
+            count = Math.min(Math.max(count, 3), 10);
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Creating ${count} flashcards on "${topic}"...*`));
+            try {
+                const prompt = `Create ${count} flashcards for studying "${topic}" for a university IT student.
+Reply in EXACTLY this format, one per line, nothing else:
+Q1: [question/term] | A1: [short answer/definition]
+Q2: [question/term] | A2: [short answer/definition]
+... up to Q${count}/A${count}`;
+                const result = await prov.call(prompt, 'You are a study tool that creates concise flashcards.', [], Math.min(150 * count, 1400));
+                const lines = result.split('\n').map(l => l.trim()).filter(l => /^Q\d+:/i.test(l));
+                if (lines.length === 0) throw new Error('Bad format');
+                const cards = lines.map((l, i) => {
+                    const [qPart, aPart] = l.split(/\|\s*A\d+:/i);
+                    const q = qPart.replace(/^Q\d+:\s*/i, '').trim();
+                    const a = (aPart || '').trim();
+                    return `*${i+1}. ${q}*\n   ➤ ${a}`;
+                });
+                await reply(withFooter([
+                    `🗂️ *Flashcards: ${topic}*`,
+                    ``,
+                    ...cards,
+                    ``,
+                    `_More: *FLASHCARDS <topic>* or *FLASHCARDS <topic> <count>*_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Flashcards error:', e.message);
+                await reply(withFooter('❌ Could not generate flashcards right now. Try a different topic.'));
+            }
+            return;
+        }
+
+        // ── DEFINE — Quick definitions ───────────────────────────────────────────
+        if (cmd === 'DEFINE' || cmd === 'DEF' || cmd === 'WHATIS') {
+            const lang = getLang(sid);
+            const term = body.replace(/^(DEFINE|DEF|WHATIS)\s*/i, '').trim();
+            if (!term) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Term එකක් දෙන්න.*\n\nඋදා: *DEFINE polymorphism*'
+                    : '❌ *Give me a term.*\n\nExample: *DEFINE polymorphism*'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Looking up "${term}"...*`));
+            try {
+                const prompt = `Give a short, clear definition of "${term}" for a university IT student. 1-2 sentences max, then ONE short example if relevant.`;
+                const def = await prov.call(prompt, 'You are a concise technical dictionary.', [], 180);
+                await reply(withFooter([
+                    `📖 *${term}*`,
+                    ``,
+                    def.trim(),
+                ].join('\n')));
+            } catch(e) {
+                console.error('Define error:', e.message);
+                await reply(withFooter('❌ Could not find a definition right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── CODE — Explain / debug pasted code ───────────────────────────────────
+        if (cmd === 'CODE' || cmd === 'DEBUG') {
+            const lang = getLang(sid);
+            const code = body.replace(/^(CODE|DEBUG)\s*/i, '').trim();
+            if (!code || code.length < 5) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Code එකක් paste කරන්න.*\n\nඋදා: *CODE for(int i=0;i<10;i++) print(i)*\n\n_Error එකක් තියෙනවානම් copy-paste කරන්න!_'
+                    : '❌ *Paste your code.*\n\nExample: *CODE for(int i=0;i<10;i++) print(i)*\n\n_If you have an error, paste the error message too!_'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Analyzing code...*`));
+            try {
+                const prompt = `A student shared this code (possibly with an error). Explain what it does in simple terms, point out any bugs or issues, and suggest a fix if needed. Be concise and use code snippets where helpful.
+
+CODE:
+${code.slice(0, 4000)}`;
+                const explanation = await prov.call(prompt, 'You are a helpful programming tutor who explains code clearly and finds bugs.', [], 900);
+                await reply(withFooter([
+                    `💻 *Code Analysis*`,
+                    ``,
+                    explanation.trim(),
+                ].join('\n')));
+            } catch(e) {
+                console.error('Code error:', e.message);
+                await reply(withFooter('❌ Could not analyze the code right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── GRAMMAR — Check & correct English sentences ──────────────────────────
+        if (cmd === 'GRAMMAR' || cmd === 'CHECK' || cmd === 'FIX') {
+            const lang = getLang(sid);
+            const text = body.replace(/^(GRAMMAR|CHECK|FIX)\s*/i, '').trim();
+            if (!text) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Check කරන්න sentence එකක් දෙන්න.*\n\nඋදා: *GRAMMAR I has went to school yesterday*'
+                    : '❌ *Give me a sentence to check.*\n\nExample: *GRAMMAR I has went to school yesterday*'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Checking grammar...*`));
+            try {
+                const prompt = `Check this English text for grammar, spelling, and punctuation errors. Reply in EXACTLY this format:
+CORRECTED: [the corrected version]
+NOTES: [1-2 short bullet points explaining the main mistakes and fixes, or "No errors found!" if perfect]
+
+TEXT: ${text}`;
+                const result = await prov.call(prompt, 'You are an English grammar tutor. Be encouraging and clear.', [], 400);
+                const corrMatch = result.match(/CORRECTED:\s*([\s\S]*?)(?:\nNOTES:|$)/i);
+                const notesMatch = result.match(/NOTES:\s*([\s\S]*)/i);
+                const corrected = (corrMatch?.[1] || result).trim();
+                const notes = (notesMatch?.[1] || '').trim();
+                await reply(withFooter([
+                    `✏️ *Grammar Check*`,
+                    ``,
+                    `📥 *Original:* ${text}`,
+                    ``,
+                    `✅ *Corrected:* ${corrected}`,
+                    notes ? `\n📝 *Notes:*\n${notes}` : '',
+                ].filter(l=>l!=='').join('\n')));
+            } catch(e) {
+                console.error('Grammar error:', e.message);
+                await reply(withFooter('❌ Could not check grammar right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── FACT — Random tech/study fact (instant, no AI needed) ────────────────
+        if (cmd === 'FACT' || cmd === 'TECHFACT') {
+            const lang = getLang(sid);
+            const facts = [
+                "The first computer 'bug' was an actual moth found stuck in the Harvard Mark II in 1947.",
+                "Java was originally called 'Oak', named after a tree outside its creator's office.",
+                "The first programmer in history was Ada Lovelace, who wrote algorithms for Charles Babbage's Analytical Engine in the 1840s.",
+                "Python is named after 'Monty Python's Flying Circus', not the snake.",
+                "The QWERTY keyboard layout was designed to slow typists down to prevent typewriter jams.",
+                "The first 1GB hard drive (1980) weighed over 500 pounds and cost $40,000.",
+                "'Spam' email got its name from a Monty Python sketch about canned meat.",
+                "The @ symbol was used in emails because it was one of the few symbols on keyboards not used in names.",
+                "Git was created by Linus Torvalds in just 10 days to manage Linux kernel development.",
+                "The term 'debugging' predates computers — Thomas Edison used it for electrical issues in 1878.",
+                "More than 90% of the world's currency exists only as digital data, not physical cash.",
+                "The first computer mouse (1964) was made of wood.",
+                "HTTP 404 errors are named after room 404 at CERN where the first web servers were located (a popular myth, but a fun one!).",
+                "A single Google search uses about the same energy as boiling a small amount of water — but Google handles billions per day.",
+                "The first domain name ever registered was symbolics.com in 1985.",
+                "Stack Overflow gets its name from the programming error that occurs when a program's call stack runs out of memory.",
+                "SLIIT students: studying in 25-min focused blocks (Pomodoro) can boost retention — try *POMODORO*!",
+                "The IELTS exam was first administered in 1989 and is now taken by over 3 million people per year.",
+            ];
+            const fact = facts[Math.floor(Math.random() * facts.length)];
+            await reply(withFooter([
+                `💡 *Did You Know?*`,
+                ``,
+                fact,
+                ``,
+                `_Send *FACT* for another one!_`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── POMODORO — Study timer with break reminders ──────────────────────────
+        if (cmd === 'POMODORO' || cmd === 'TIMER' || cmd === 'FOCUS') {
+            const lang = getLang(sid);
+            if ((arg1||'').toUpperCase() === 'STOP') {
+                const t = pomodoroTimers.get(sid);
+                if (t) {
+                    clearTimeout(t.workTimeout);
+                    clearTimeout(t.breakTimeout);
+                    pomodoroTimers.delete(sid);
+                    await reply(withFooter(lang==='si' ? '⏹️ *Pomodoro timer නවත්වා ඇත.*' : '⏹️ *Pomodoro timer stopped.*'));
+                } else {
+                    await reply(withFooter(lang==='si' ? 'ℹ️ *Active timer එකක් නැත.*' : 'ℹ️ *No active timer.*'));
+                }
+                return;
+            }
+            let minutes = parseInt(arg1, 10);
+            if (!minutes || minutes < 5 || minutes > 120) minutes = 25;
+            const existing = pomodoroTimers.get(sid);
+            if (existing) { clearTimeout(existing.workTimeout); clearTimeout(existing.breakTimeout); }
+            const workTimeout = setTimeout(async () => {
+                try {
+                    await directSend(sid, { text: withFooter([
+                        `⏰ *Time's up!*`,
+                        ``,
+                        `You focused for *${minutes} minutes*. Great work! 🎉`,
+                        ``,
+                        `☕ Take a *5 minute break* — stretch, hydrate, look away from the screen.`,
+                        ``,
+                        `_Send *POMODORO* again when you're ready for the next session!_`,
+                    ].join('\n')) });
+                } catch(e) { console.error('Pomodoro notify error:', e.message); }
+                pomodoroTimers.delete(sid);
+            }, minutes * 60 * 1000);
+            pomodoroTimers.set(sid, { workTimeout, breakTimeout: null });
+            await reply(withFooter([
+                `🍅 *Pomodoro Started!*`,
+                ``,
+                `⏱️ Focus session: *${minutes} minutes*`,
+                `📵 Put your phone away and focus on your studies.`,
+                ``,
+                `I'll message you when time's up!`,
+                `_Send *POMODORO STOP* to cancel._`,
+            ].join('\n')));
+            return;
+        }
+
         // ── ENDCHAT ───────────────────────────────────────────────────────
         if (body.trim().toUpperCase() === 'ENDCHAT') {
             const lang = getLang(sid);
@@ -1402,6 +1714,17 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                     `*SUMMARIZE <text>*  📝 AI summary of notes`,
                     `*EXPLAIN <topic>*   💡 Simple explanation`,
                     `*TRANSLATE <text>*  🌐 Sinhala ↔ English`,
+                    `*FLASHCARDS <topic>*  🗂️ Study flashcards`,
+                    `*DEFINE <term>*       📖 Quick definition`,
+                    `*CODE <paste code>*   💻 Explain/debug code`,
+                    `*GRAMMAR <text>*      ✏️ Fix grammar errors`,
+                    ``,
+                    `━━━━ ⏱️ *Productivity* ━━━━`,
+                    ``,
+                    `*POMODORO*       🍅 25-min focus timer`,
+                    `*POMODORO 50*    🍅 Custom duration`,
+                    `*POMODORO STOP*  ⏹️ Cancel timer`,
+                    `*FACT*           💡 Random tech fact`,
                     ``,
                     `━━━━ 🌐 *Language* ━━━━`,
                     ``,
@@ -1474,6 +1797,16 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                     `*SUMMARIZE <text>*  📝 AI summary of notes`,
                     `*EXPLAIN <topic>*   💡 Simple explanation`,
                     `*TRANSLATE <text>*  🌐 Sinhala ↔ English`,
+                    `*FLASHCARDS <topic>*  🗂️ Study flashcards`,
+                    `*DEFINE <term>*       📖 Quick definition`,
+                    `*CODE <paste code>*   💻 Explain/debug code`,
+                    `*GRAMMAR <text>*      ✏️ Fix grammar errors`,
+                    ``,
+                    `━━━━ ⏱️ *Productivity* ━━━━`,``,
+                    `*POMODORO*       🍅 25-min focus timer`,
+                    `*POMODORO 50*    🍅 Custom duration`,
+                    `*POMODORO STOP*  ⏹️ Cancel timer`,
+                    `*FACT*           💡 Random tech fact`,
                     ``,
                     `━━━━ 🌐 *Language* ━━━━`,``,
                     `*LANG SI*  🇱🇰 Sinhala`,
@@ -1740,6 +2073,7 @@ Keep bullets under 8 words each. Make it professional.`;
             const lang = getLang(sid);
             const category = (arg1||'').toLowerCase();
             const categories = ['english','grammar','ielts','speaking','java','python','html','coding','pseudo','all'];
+            const setCount = parseInt(arg2, 10);
             if (category && !categories.includes(category)) {
                 await reply(withFooter([
                     `╔══════════════════════════╗`,
@@ -1756,6 +2090,8 @@ Keep bullets under 8 words each. Make it professional.`;
                     `*QUIZ pseudo*    📋 Pseudocode/Logic`,
                     `*QUIZ all*       🎲 Random category`,
                     ``,
+                    `💡 *Scored sets:* *QUIZ java 5* — 5 questions, final score!`,
+                    ``,
                     `_Just send *QUIZ* for a random question!_`,
                 ].join('\n')));
                 return;
@@ -1764,49 +2100,26 @@ Keep bullets under 8 words each. Make it professional.`;
             await reply(withFooter(`⏳ *${prov.emoji} Generating quiz question...*`));
             try {
                 const cat = category || 'all';
-                const catMap = {
-                    english: 'English grammar (fill in the blank, correct the sentence, or choose the right word)',
-                    grammar: 'English grammar rules and usage',
-                    ielts: 'IELTS exam preparation (vocabulary, reading comprehension, or writing task)',
-                    speaking: 'English speaking and communication skills',
-                    java: 'Java programming (syntax, OOP, data structures)',
-                    python: 'Python programming (syntax, functions, data structures)',
-                    html: 'HTML, CSS, or basic web development',
-                    coding: 'Programming concepts (algorithms, debugging, logic)',
-                    pseudo: 'Pseudocode writing or algorithm logic',
-                    all: 'any of: English grammar, IELTS, Java, Python, HTML, or programming concepts',
-                };
-                const catDesc = catMap[cat] || catMap.all;
-                const prompt = `Create ONE quiz question about: ${catDesc}
-For SLIIT Year 1 university students.
-
-Reply in EXACTLY this format (no extra text):
-QUESTION: [the question - make it clear and specific]
-ANSWER: [the correct answer - be concise]
-CATEGORY: [${cat === 'all' ? 'detected category' : cat}]
-DIFFICULTY: [easy/medium/hard]`;
-                const result = await prov.call(prompt, 'You are a university quiz creator. Create clear, educational questions.', [], 350);
-                const qMatch    = result.match(/QUESTION:\s*(.+)/i);
-                const aMatch    = result.match(/ANSWER:\s*(.+)/i);
-                const catMatch  = result.match(/CATEGORY:\s*(.+)/i);
-                const diffMatch = result.match(/DIFFICULTY:\s*(.+)/i);
-                if (!qMatch || !aMatch) throw new Error('Bad format');
-                const question = qMatch[1].trim();
-                const answer = aMatch[1].trim();
-                const detectedCat = (catMatch?.[1]?.trim() || cat).replace(/[\[\]]/g, '');
-                const difficulty  = (diffMatch?.[1]?.trim() || 'medium').replace(/[\[\]]/g, '');
-                quizSessions.set(sid, { question, answer, category: detectedCat, asked: Date.now() });
-                const diffEmoji = difficulty.toLowerCase().includes('easy') ? '🟢' : difficulty.toLowerCase().includes('hard') ? '🔴' : '🟡';
+                const q = await generateQuizQuestion(prov, cat);
+                const session = { question: q.question, answer: q.answer, category: q.category, asked: Date.now() };
+                if (setCount >= 2 && setCount <= 10) {
+                    session.setInfo = { category: cat, remaining: setCount - 1, score: 0, total: setCount };
+                }
+                quizSessions.set(sid, session);
+                const diffEmoji = q.difficulty.toLowerCase().includes('easy') ? '🟢' : q.difficulty.toLowerCase().includes('hard') ? '🔴' : '🟡';
+                const setLine = session.setInfo
+                    ? `\n📋 *Question 1 of ${session.setInfo.total}*\n`
+                    : '';
                 await reply(withFooter([
                     `🎯 *Quiz Time!*`,
+                    setLine,
+                    `📚 Category: *${q.category.toUpperCase()}*  ${diffEmoji} ${q.difficulty}`,
                     ``,
-                    `📚 Category: *${detectedCat.toUpperCase()}*  ${diffEmoji} ${difficulty}`,
-                    ``,
-                    `❓ *${question}*`,
+                    `❓ *${q.question}*`,
                     ``,
                     `_Reply with your answer!_`,
-                    `_Send *QUIZ* to skip & get a new question_`,
-                ].join('\n')));
+                    session.setInfo ? '' : `_Send *QUIZ* to skip & get a new question_`,
+                ].filter(l => l !== '').join('\n')));
             } catch(e) {
                 console.error('Quiz error:', e.message);
                 await reply(withFooter('❌ Could not generate a question. Try *QUIZ english* or *QUIZ java*.'));
