@@ -237,6 +237,7 @@ let db = {
     broadcasts:    [],
     waGroups:      {},   // slot_key → { jid, inviteLink, name, createdAt }
     projectGroups: {},   // project_group → { members: ["IT26XXXXXX", ...], addedBy, createdAt }
+    quizStats:     {},   // jid → { correct, wrong, streak, bestStreak, total, lastAt }
 };
 
 // ─── WEB SERVER ───────────────────────────────────────────────────────────────
@@ -396,6 +397,7 @@ function loadDB() {
             if (!db.aiProvider)    db.aiProvider    = {};
             if (!db.groupLinks)    db.groupLinks    = {};
             if (!db.aiSessions)    db.aiSessions    = {};
+            if (!db.quizStats)     db.quizStats     = {};
             console.log(`📦 DB loaded — ${Object.keys(db.registrations).length} registrations, ${Object.keys(db.waGroups).length} WA groups`);
         }
     } catch(e) { console.error('DB load error:', e.message); }
@@ -1018,7 +1020,7 @@ async function processMessage(jid, msg, body) {
         if (isBanned(sid)) { console.log(`🚫 Banned user: ${jidNum(sid)}`); return; }
 
         // ── QUIZ ANSWER HANDLER — captures the reply to an active quiz ───────────
-        if (quizSessions.has(sid) && !['QUIZ','PRACTICE','Q','MYEAC','EAC','ASK','AI','HELP','HI','HELLO','START','MENU','MYINFO','SETAI','USEAI','ENDCHAT','LANG'].includes(cmd)) {
+        if (quizSessions.has(sid) && !['QUIZ','PRACTICE','Q','MYEAC','EAC','ASK','AI','HELP','HI','HELLO','START','MENU','MYINFO','SETAI','USEAI','ENDCHAT','LANG','LEADERBOARD','LB','TOP','MYSTATS','STATS','SUMMARIZE','SUMMARY','TLDR','TRANSLATE','TR','EXPLAIN','ELI5','IMAGE','IMG','IMAGINE','SLIDES','PPT','PRESENTATION','VIDEO','YT','YOUTUBE'].includes(cmd)) {
             const qs = quizSessions.get(sid);
             const userAns = body.trim();
             const lang = getLang(sid);
@@ -1039,9 +1041,27 @@ EXPLANATION: [2-3 sentences explaining why the answer is correct/wrong, what the
                 const isCorrect = result.toUpperCase().includes('RESULT: CORRECT');
                 const explanation = result.replace(/RESULT:[^\n]*/i, '').replace(/EXPLANATION:/i, '').trim();
                 const emoji = isCorrect ? '✅' : '❌';
+
+                // Update quiz stats / streak for leaderboard
+                if (!db.quizStats[sid]) db.quizStats[sid] = { correct: 0, wrong: 0, streak: 0, bestStreak: 0, total: 0, lastAt: 0 };
+                const stats = db.quizStats[sid];
+                stats.total++;
+                stats.lastAt = Date.now();
+                if (isCorrect) {
+                    stats.correct++;
+                    stats.streak++;
+                    if (stats.streak > stats.bestStreak) stats.bestStreak = stats.streak;
+                } else {
+                    stats.wrong++;
+                    stats.streak = 0;
+                }
+                saveDB();
                 const feedback = isCorrect
                     ? (lang==='si' ? '🎉 *නිවැරදියි!*' : '🎉 *Correct! Well done!*')
                     : (lang==='si' ? `❌ *වැරදියි.*\n\n✅ *නිවැරදි පිළිතුර:* ${qs.answer}` : `❌ *Not quite right.*\n\n✅ *Correct answer:* ${qs.answer}`);
+                const streakLine = isCorrect && stats.streak > 1
+                    ? `🔥 *Streak: ${stats.streak} in a row!*\n\n`
+                    : '';
                 await reply(withFooter([
                     `${emoji} *Quiz Result*`,
                     ``,
@@ -1050,14 +1070,172 @@ EXPLANATION: [2-3 sentences explaining why the answer is correct/wrong, what the
                     ``,
                     feedback,
                     ``,
-                    `📖 *Explanation:*`,
+                    streakLine + `📖 *Explanation:*`,
                     explanation,
                     ``,
+                    `📊 *Score:* ${stats.correct}/${stats.total} correct  |  *LEADERBOARD* to see rankings`,
                     `_Send *QUIZ* for another question!_`,
                 ].join('\n')));
             } catch(e) {
                 console.error('Quiz check error:', e.message);
                 await reply(withFooter(`❌ Could not check your answer. Try sending *QUIZ* for a new question.`));
+            }
+            return;
+        }
+
+        // ── LEADERBOARD — Top quiz performers ────────────────────────────────────
+        if (cmd === 'LEADERBOARD' || cmd === 'LB' || cmd === 'TOP') {
+            const lang = getLang(sid);
+            const entries = Object.entries(db.quizStats)
+                .filter(([,s]) => s.total > 0)
+                .map(([jid, s]) => {
+                    const reg = db.registrations[jid];
+                    const name = reg && db.students[reg] ? db.students[reg].name : jidNum(jid);
+                    return { name, reg: reg || '—', correct: s.correct, total: s.total, streak: s.bestStreak };
+                })
+                .sort((a,b) => b.correct - a.correct || b.streak - a.streak)
+                .slice(0, 10);
+
+            if (entries.length === 0) {
+                await reply(withFooter(lang==='si'
+                    ? '📊 *තවම QUIZ score නැත.*\n\n*QUIZ* යවා පුහුණු වෙන්න!'
+                    : '📊 *No quiz scores yet!*\n\nSend *QUIZ* to start practicing and climb the leaderboard.'));
+                return;
+            }
+            const medals = ['🥇','🥈','🥉'];
+            const lines = [
+                `╔══════════════════════════╗`,
+                `  🏆 *Quiz Leaderboard*`,
+                `╚══════════════════════════╝`,
+                ``,
+            ];
+            entries.forEach((e, i) => {
+                const rank = medals[i] || `${i+1}.`;
+                const acc = Math.round((e.correct / e.total) * 100);
+                lines.push(`${rank} *${e.name}*  —  ${e.correct}✅ / ${e.total} (${acc}%)  🔥${e.streak}`);
+            });
+            lines.push('', '_Send *QUIZ* to climb the ranks!_', '_Send *MYSTATS* for your personal stats._');
+            await reply(withFooter(lines.join('\n')));
+            return;
+        }
+
+        // ── MYSTATS — Personal quiz performance ──────────────────────────────────
+        if (cmd === 'MYSTATS' || cmd === 'STATS') {
+            const lang = getLang(sid);
+            const s = db.quizStats[sid];
+            if (!s || s.total === 0) {
+                await reply(withFooter(lang==='si'
+                    ? '📊 *තවම QUIZ history නැත.*\n\n*QUIZ* යවා පුහුණු වෙන්න!'
+                    : '📊 *No quiz history yet!*\n\nSend *QUIZ* to start practicing.'));
+                return;
+            }
+            const acc = Math.round((s.correct / s.total) * 100);
+            const bar = '█'.repeat(Math.round(acc/10)) + '░'.repeat(10 - Math.round(acc/10));
+            await reply(withFooter([
+                `╔══════════════════════════╗`,
+                `  📊 *Your Quiz Stats*`,
+                `╚══════════════════════════╝`,
+                ``,
+                `✅ Correct:    ${s.correct}`,
+                `❌ Wrong:      ${s.wrong}`,
+                `📈 Total:      ${s.total}`,
+                `🎯 Accuracy:   ${acc}%`,
+                `${bar}`,
+                `🔥 Best Streak: ${s.bestStreak}`,
+                ``,
+                `_Send *LEADERBOARD* to see how you rank!_`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── SUMMARIZE — AI summary of pasted notes/text ──────────────────────────
+        if (cmd === 'SUMMARIZE' || cmd === 'SUMMARY' || cmd === 'TLDR') {
+            const lang = getLang(sid);
+            const text = body.replace(/^(SUMMARIZE|SUMMARY|TLDR)\s*/i, '').trim();
+            if (!text || text.length < 30) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Summarize කරන්න text එකක් paste කරන්න (අවම 30 characters).*\n\nඋදා: *SUMMARIZE <your lecture notes here>*'
+                    : '❌ *Paste some text to summarize (at least 30 characters).*\n\nExample: *SUMMARIZE <paste your lecture notes here>*'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Summarizing...*`));
+            try {
+                const prompt = `Summarize the following text for a university student studying for exams. Use short bullet points covering only the key facts, concepts, and definitions. Keep it concise.
+
+TEXT:
+${text.slice(0, 6000)}`;
+                const summary = await prov.call(prompt, 'You are a helpful study assistant that creates clear, concise exam-focused summaries.', [], 700);
+                await reply(withFooter([
+                    `📝 *Summary*`,
+                    ``,
+                    summary.trim(),
+                    ``,
+                    `_Paste more text with *SUMMARIZE* anytime!_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Summarize error:', e.message);
+                await reply(withFooter('❌ Could not summarize right now. Try again with a shorter text.'));
+            }
+            return;
+        }
+
+        // ── TRANSLATE — Sinhala ↔ English ─────────────────────────────────────────
+        if (cmd === 'TRANSLATE' || cmd === 'TR') {
+            const lang = getLang(sid);
+            const text = body.replace(/^(TRANSLATE|TR)\s*/i, '').trim();
+            if (!text) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Translate කරන්න text එකක් දෙන්න.*\n\nඋදා: *TRANSLATE Good morning, how are you?*'
+                    : '❌ *Give me text to translate.*\n\nExample: *TRANSLATE ඔයාට කොහොමද?*\nWorks both ways — Sinhala ↔ English!'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Translating...*`));
+            try {
+                const prompt = `Detect whether the following text is in Sinhala or English, then translate it to the OTHER language. Reply with ONLY the translation, nothing else — no labels, no explanations.
+
+TEXT: ${text}`;
+                const translated = await prov.call(prompt, 'You are a precise Sinhala-English translator. Output only the translation.', [], 500);
+                await reply(withFooter([
+                    `🌐 *Translation*`,
+                    ``,
+                    `📥 ${text}`,
+                    ``,
+                    `📤 ${translated.trim()}`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Translate error:', e.message);
+                await reply(withFooter('❌ Could not translate right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── EXPLAIN — Simple explanations of tricky topics ───────────────────────
+        if (cmd === 'EXPLAIN' || cmd === 'ELI5') {
+            const lang = getLang(sid);
+            const topic = body.replace(/^(EXPLAIN|ELI5)\s*/i, '').trim();
+            if (!topic) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Explain කරන්න මාතෘකාවක් දෙන්න.*\n\nඋදා: *EXPLAIN recursion*'
+                    : '❌ *Give me a topic to explain.*\n\nExample: *EXPLAIN recursion*\nExample: *EXPLAIN how does the internet work*'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Explaining...*`));
+            try {
+                const prompt = `Explain "${topic}" in simple, easy-to-understand terms for a first-year university IT student. Use a short analogy if helpful, then a brief technical summary. Keep it under 200 words.`;
+                const explanation = await prov.call(prompt, 'You are a friendly tutor who explains technical concepts simply and clearly.', [], 500);
+                await reply(withFooter([
+                    `💡 *Explaining: ${topic}*`,
+                    ``,
+                    explanation.trim(),
+                    ``,
+                    `_Want more detail? Try *ASK ${topic} in depth*_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Explain error:', e.message);
+                await reply(withFooter('❌ Could not generate an explanation right now. Try again.'));
             }
             return;
         }
@@ -1216,6 +1394,14 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                     `*QUIZ python*     🐍 Python quiz`,
                     `*QUIZ coding*     💻 Coding concepts`,
                     `  💬 Just reply with your answer!`,
+                    `*LEADERBOARD*     🏆 Top quiz scorers`,
+                    `*MYSTATS*         📊 Your quiz stats`,
+                    ``,
+                    `━━━━ 🧠 *Study Tools* ━━━━`,
+                    ``,
+                    `*SUMMARIZE <text>*  📝 AI summary of notes`,
+                    `*EXPLAIN <topic>*   💡 Simple explanation`,
+                    `*TRANSLATE <text>*  🌐 Sinhala ↔ English`,
                     ``,
                     `━━━━ 🌐 *Language* ━━━━`,
                     ``,
@@ -1281,6 +1467,13 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                     `*QUIZ python*     🐍 Python quiz`,
                     `*QUIZ coding*     💻 Coding concepts`,
                     `  💬 Just reply with your answer!`,
+                    `*LEADERBOARD*     🏆 Top quiz scorers`,
+                    `*MYSTATS*         📊 Your quiz stats`,
+                    ``,
+                    `━━━━ 🧠 *Study Tools* ━━━━`,``,
+                    `*SUMMARIZE <text>*  📝 AI summary of notes`,
+                    `*EXPLAIN <topic>*   💡 Simple explanation`,
+                    `*TRANSLATE <text>*  🌐 Sinhala ↔ English`,
                     ``,
                     `━━━━ 🌐 *Language* ━━━━`,``,
                     `*LANG SI*  🇱🇰 Sinhala`,
