@@ -1056,7 +1056,7 @@ async function processMessage(jid, msg, body) {
         if (isBanned(sid)) { console.log(`🚫 Banned user: ${jidNum(sid)}`); return; }
 
         // ── QUIZ ANSWER HANDLER — captures the reply to an active quiz ───────────
-        if (quizSessions.has(sid) && !['QUIZ','PRACTICE','Q','MYEAC','EAC','ASK','AI','HELP','HI','HELLO','START','MENU','MYINFO','SETAI','USEAI','ENDCHAT','LANG','LEADERBOARD','LB','TOP','MYSTATS','STATS','SUMMARIZE','SUMMARY','TLDR','TRANSLATE','TR','EXPLAIN','ELI5','IMAGE','IMG','IMAGINE','SLIDES','PPT','PRESENTATION','VIDEO','YT','YOUTUBE','FLASHCARDS','CARDS','FC','DEFINE','DEF','WHATIS','CODE','DEBUG','GRAMMAR','CHECK','FIX','FACT','TECHFACT','POMODORO','TIMER','FOCUS'].includes(cmd)) {
+        if (quizSessions.has(sid) && !['QUIZ','PRACTICE','Q','MYEAC','EAC','ASK','AI','HELP','HI','HELLO','START','MENU','MYINFO','SETAI','USEAI','ENDCHAT','LANG','LEADERBOARD','LB','TOP','MYSTATS','STATS','SUMMARIZE','SUMMARY','TLDR','TRANSLATE','TR','EXPLAIN','ELI5','IMAGE','IMG','IMAGINE','SLIDES','PPT','PRESENTATION','VIDEO','YT','YOUTUBE','FLASHCARDS','CARDS','FC','DEFINE','DEF','WHATIS','CODE','DEBUG','GRAMMAR','CHECK','FIX','FACT','TECHFACT','POMODORO','TIMER','FOCUS','HUMANIZE','REWRITE','EMAIL','CITE','CITATION','STUDYPLAN','PLAN','INTERVIEW','MOCKINTERVIEW','ALL','PROFILE','TIMETABLE','SEARCH','CREATIVE','STUDY','WRITING','TOOLS'].includes(cmd)) {
             const qs = quizSessions.get(sid);
             const userAns = body.trim();
             const lang = getLang(sid);
@@ -1552,6 +1552,164 @@ TEXT: ${text}`;
             return;
         }
 
+        // ── HUMANIZE — Improve AI/robotic-sounding text ──────────────────────────
+        if (cmd === 'HUMANIZE' || cmd === 'REWRITE') {
+            const lang = getLang(sid);
+            const text = body.replace(/^(HUMANIZE|REWRITE)\s*/i, '').trim();
+            if (!text || text.length < 15) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Rewrite කරන්න text එකක් paste කරන්න (අවම 15 characters).*\n\nඋදා: *HUMANIZE <your paragraph here>*'
+                    : '❌ *Paste some text to improve (at least 15 characters).*\n\nExample: *HUMANIZE <paste your paragraph here>*\n\n_Great for making AI-drafted or stiff writing sound more natural in your own voice — always review before submitting!_'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Rewriting...*`));
+            try {
+                const prompt = `Rewrite the following text so it sounds natural, warm, and human — like a student wrote it in their own voice. Vary sentence length and structure, remove robotic or repetitive AI phrasing, and keep the original meaning and key facts intact. Reply with ONLY the rewritten text, nothing else.
+
+TEXT:
+${text.slice(0, 4000)}`;
+                const rewritten = await prov.call(prompt, 'You are a skilled writing editor who makes text sound natural and human while preserving meaning.', [], 900);
+                await reply(withFooter([
+                    `✨ *Rewritten Version*`,
+                    ``,
+                    rewritten.trim(),
+                    ``,
+                    `_⚠️ Always review and personalize before submitting — make sure it still reflects your own understanding._`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Humanize error:', e.message);
+                await reply(withFooter('❌ Could not rewrite the text right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── EMAIL — Draft a professional email ───────────────────────────────────
+        if (cmd === 'EMAIL') {
+            const lang = getLang(sid);
+            const desc = body.replace(/^EMAIL\s*/i, '').trim();
+            if (!desc) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Email එක ගැන විස්තර දෙන්න.*\n\nඋදා: *EMAIL ask lecturer for assignment deadline extension due to illness*'
+                    : '❌ *Describe the email you need.*\n\nExample: *EMAIL ask my lecturer for a deadline extension due to illness*\nExample: *EMAIL request a reference letter from my supervisor*'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Drafting email...*`));
+            try {
+                const prompt = `Write a polite, professional email for a university student based on this request: "${desc}"
+
+Reply in EXACTLY this format:
+SUBJECT: [short subject line]
+BODY: [the full email body, with greeting and polite closing. Use "[Your Name]" as placeholder for the student's name.]`;
+                const result = await prov.call(prompt, 'You are a professional writing assistant helping students communicate respectfully with university staff.', [], 700);
+                const subjMatch = result.match(/SUBJECT:\s*(.+)/i);
+                const bodyMatch = result.match(/BODY:\s*([\s\S]*)/i);
+                const subject = (subjMatch?.[1] || 'Email').trim();
+                const emailBody = (bodyMatch?.[1] || result).trim();
+                await reply(withFooter([
+                    `📧 *Email Draft*`,
+                    ``,
+                    `*Subject:* ${subject}`,
+                    ``,
+                    emailBody,
+                    ``,
+                    `_Replace [Your Name] with your name before sending!_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Email error:', e.message);
+                await reply(withFooter('❌ Could not draft the email right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── CITE — Generate a reference citation ─────────────────────────────────
+        if (cmd === 'CITE' || cmd === 'CITATION') {
+            const lang = getLang(sid);
+            const rest = body.replace(/^(CITE|CITATION)\s*/i, '').trim();
+            if (!rest) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Source details දෙන්න.*\n\nඋදා: *CITE APA: Smith J, Effective Java, 2020, Pearson*\n\n_Default: APA. IEEE/MLA ද support කරයි._'
+                    : '❌ *Give me the source details.*\n\nExample: *CITE APA Smith J, Effective Java, 2020, Pearson*\nExample: *CITE IEEE: a 2021 article on neural networks by Lee K, IEEE Trans, vol 5*\n\n_Default style: APA. Also supports IEEE/MLA — just mention the style._'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Generating citation...*`));
+            try {
+                const prompt = `Generate a properly formatted reference list citation based on this source information: "${rest}"
+
+If a citation style (APA, IEEE, MLA, Harvard) is mentioned, use it. Otherwise default to APA 7th edition. If some details are missing, use reasonable placeholders like [Year] or [Publisher]. Reply with ONLY the citation, nothing else.`;
+                const citation = await prov.call(prompt, 'You are a precise academic citation generator.', [], 250);
+                await reply(withFooter([
+                    `📚 *Citation*`,
+                    ``,
+                    citation.trim(),
+                    ``,
+                    `_Double-check against your module's required style guide._`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Cite error:', e.message);
+                await reply(withFooter('❌ Could not generate the citation right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── STUDYPLAN — AI generated study schedule ──────────────────────────────
+        if (cmd === 'STUDYPLAN' || cmd === 'PLAN') {
+            const lang = getLang(sid);
+            const rest = body.replace(/^(STUDYPLAN|PLAN)\s*/i, '').trim();
+            if (!rest) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Subjects/exam details දෙන්න.*\n\nඋදා: *STUDYPLAN Java, DB, Networking exams in 5 days, 2 hours/day*'
+                    : '❌ *Give me your subjects and timeframe.*\n\nExample: *STUDYPLAN Java, Database, Networking exams in 5 days, 2 hours per day*\nExample: *STUDYPLAN IELTS in 1 week*'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Building your study plan...*`));
+            try {
+                const prompt = `Create a practical day-by-day study plan for a university student based on: "${rest}"
+
+Keep it realistic and balanced (include short breaks). Format as a clear day-by-day list with bullet points for tasks. Keep it concise — focus on actionable topics, not generic advice.`;
+                const plan = await prov.call(prompt, 'You are a supportive academic study planner. Be practical and realistic, not overwhelming.', [], 900);
+                await reply(withFooter([
+                    `🗓️ *Your Study Plan*`,
+                    ``,
+                    plan.trim(),
+                    ``,
+                    `_Tip: Use *POMODORO* during each session to stay focused!_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Studyplan error:', e.message);
+                await reply(withFooter('❌ Could not generate a study plan right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── INTERVIEW — Mock interview practice questions ────────────────────────
+        if (cmd === 'INTERVIEW' || cmd === 'MOCKINTERVIEW') {
+            const lang = getLang(sid);
+            const role = body.replace(/^(INTERVIEW|MOCKINTERVIEW)\s*/i, '').trim() || 'software engineering internship';
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Preparing interview questions for "${role}"...*`));
+            try {
+                const prompt = `Generate 5 realistic interview questions for a university student applying for: "${role}"
+
+Mix technical and behavioral questions appropriate for an entry-level/intern position. Reply as a numbered list of just the questions, nothing else.`;
+                const questions = await prov.call(prompt, 'You are an experienced technical interviewer creating practice questions for students.', [], 500);
+                await reply(withFooter([
+                    `🎤 *Mock Interview: ${role}*`,
+                    ``,
+                    questions.trim(),
+                    ``,
+                    `_Try answering one, then *ASK* me to review your answer!_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Interview error:', e.message);
+                await reply(withFooter('❌ Could not generate interview questions right now. Try again.'));
+            }
+            return;
+        }
+
         // ── ENDCHAT ───────────────────────────────────────────────────────
         if (body.trim().toUpperCase() === 'ENDCHAT') {
             const lang = getLang(sid);
@@ -1639,45 +1797,29 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
             const quote = randomQuote(lang);
             const greeting = name ? (lang==='si' ? `👋 ආයුබෝවන් *${name}!*` : `👋 Hi, *${name}!*`) : (lang==='si' ? `👋 *SLIIT Y1S1 Bot එකට සාදරයෙන් පිළිගනිමු!*` : `👋 *Welcome to SLIIT Y1S1 Bot!*`);
 
-            let lines;
-            if (lang === 'si') {
-                lines = [
-                    `╔══════════════════════════════╗`,
-                    `  🎓 *SLIIT Y1S1 Assistant Bot*`,
-                    `╚══════════════════════════════╝`,
-                    ``,
-                    greet, greeting, ``,
-                    `💬 _${quote}_`,
-                    ``,
-                    `━━━━ 📌 *Registration* ━━━━`,
-                    ``,
-                    `*REG IT26XXXXXX*`,
-                    `  Register with your SLIIT IT number`,
-                    ``,
-                    `━━━━ 👤 *My Profile* ━━━━`,
-                    ``,
+            // ─── Category sections (English) ────────────────────────────────────
+            const SECTIONS_EN = {
+                PROFILE: { emoji: '👤', title: 'My Profile & Registration', lines: [
+                    `*REG IT26XXXXXX*  📌 Register with your SLIIT IT number`,
                     `*MYINFO*          📋 Your student profile`,
                     `*MYGROUPS*        📊 Timetable & group info`,
                     `*MYLINK*          🔗 Your WhatsApp group link`,
                     `*MYEAC*           📚 Your EAC group info`,
                     `*CLASSMATES*      👥 See your groupmates`,
                     `*JOINGROUP WD01*  🏘️ Get any group link`,
-                    ``,
-                    `━━━━ 📅 *Timetable* ━━━━`,
-                    ``,
+                ]},
+                TIMETABLE: { emoji: '📅', title: 'Timetable', lines: [
                     `*TODAY*      📆 Today's schedule`,
                     `*TOMORROW*   📆 Tomorrow's classes`,
                     `*NEXT*       ⏰ Next class now`,
                     `*WEEK*       📋 Full weekly view`,
                     `*TT Friday*  📅 Day-specific timetable`,
-                    ``,
-                    `━━━━ 🔍 *Search* ━━━━`,
-                    ``,
+                ]},
+                SEARCH: { emoji: '🔍', title: 'Search', lines: [
                     `*INFO IT26XXXXXX*  🔍 Any student's info`,
                     `*SEARCH <name>*    🔎 Search by name`,
-                    ``,
-                    `━━━━ 🤖 *AI Assistant* ━━━━`,
-                    ``,
+                ]},
+                AI: { emoji: '🤖', title: 'AI Assistant', lines: [
                     `*ASK <question>*  🧠 Ask AI anything!`,
                     `  💬 Reply to AI message to continue chat`,
                     `  e.g. ASK What is OOP?`,
@@ -1687,136 +1829,134 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                     `*SETAI deepseek*  🔬 DeepSeek R1`,
                     `*QUOTE*           💬 Motivational quote`,
                     `*ENDCHAT*         🔚 End AI session`,
-                    ``,
-                    `━━━━ 🎨 *Creative Tools* ━━━━`,
-                    ``,
+                ]},
+                CREATIVE: { emoji: '🎨', title: 'Creative Tools', lines: [
                     `*IMAGE <description>*  🖼️ Generate AI image`,
                     `  e.g. IMAGE futuristic SLIIT campus`,
                     `*SLIDES <topic>*       📊 AI presentation`,
                     `  e.g. SLIDES Intro to OOP`,
                     `*VIDEO <topic>*        🎬 Find tutorials`,
                     `  e.g. VIDEO database normalization`,
-                    ``,
-                    `━━━━ 🎯 *Quiz & Practice* ━━━━`,
-                    ``,
+                ]},
+                QUIZ: { emoji: '🎯', title: 'Quiz & Practice', lines: [
                     `*QUIZ*            🎯 Random quiz question`,
                     `*QUIZ english*    📝 English grammar quiz`,
                     `*QUIZ ielts*      🎓 IELTS practice`,
                     `*QUIZ java*       ☕ Java quiz`,
                     `*QUIZ python*     🐍 Python quiz`,
                     `*QUIZ coding*     💻 Coding concepts`,
+                    `*QUIZ java 5*     🎯 Scored 5-question set`,
                     `  💬 Just reply with your answer!`,
                     `*LEADERBOARD*     🏆 Top quiz scorers`,
                     `*MYSTATS*         📊 Your quiz stats`,
-                    ``,
-                    `━━━━ 🧠 *Study Tools* ━━━━`,
-                    ``,
-                    `*SUMMARIZE <text>*  📝 AI summary of notes`,
-                    `*EXPLAIN <topic>*   💡 Simple explanation`,
-                    `*TRANSLATE <text>*  🌐 Sinhala ↔ English`,
+                ]},
+                STUDY: { emoji: '🧠', title: 'Study Tools', lines: [
+                    `*SUMMARIZE <text>*    📝 AI summary of notes`,
+                    `*EXPLAIN <topic>*     💡 Simple explanation`,
+                    `*TRANSLATE <text>*    🌐 Sinhala ↔ English`,
                     `*FLASHCARDS <topic>*  🗂️ Study flashcards`,
                     `*DEFINE <term>*       📖 Quick definition`,
                     `*CODE <paste code>*   💻 Explain/debug code`,
                     `*GRAMMAR <text>*      ✏️ Fix grammar errors`,
-                    ``,
-                    `━━━━ ⏱️ *Productivity* ━━━━`,
-                    ``,
+                ]},
+                WRITING: { emoji: '✍️', title: 'Writing & Career', lines: [
+                    `*HUMANIZE <text>*   ✨ Make text sound natural`,
+                    `*EMAIL <request>*   📧 Draft a professional email`,
+                    `*CITE <source>*     📚 Generate a citation (APA/IEEE)`,
+                    `*STUDYPLAN <info>*  🗓️ AI study schedule`,
+                    `*INTERVIEW <role>*  🎤 Mock interview questions`,
+                ]},
+                TOOLS: { emoji: '⏱️', title: 'Productivity', lines: [
                     `*POMODORO*       🍅 25-min focus timer`,
                     `*POMODORO 50*    🍅 Custom duration`,
                     `*POMODORO STOP*  ⏹️ Cancel timer`,
                     `*FACT*           💡 Random tech fact`,
-                    ``,
-                    `━━━━ 🌐 *Language* ━━━━`,
-                    ``,
+                ]},
+                LANG: { emoji: '🌐', title: 'Language', lines: [
                     `*LANG SI*  🇱🇰 Sinhala`,
                     `*LANG EN*  🇬🇧 English (current)`,
-                    ``,
-                    `━━━━ ℹ️ *About* ━━━━`,
-                    ``,
+                ]},
+            };
+
+            // ─── Category sections (Sinhala) — titles localized, commands same ──
+            const SECTIONS_SI = {
+                PROFILE: { emoji: '👤', title: 'මගේ විස්තර සහ ලියාපදිංචිය', lines: SECTIONS_EN.PROFILE.lines },
+                TIMETABLE: { emoji: '📅', title: 'කාල සටහන', lines: SECTIONS_EN.TIMETABLE.lines },
+                SEARCH: { emoji: '🔍', title: 'සෙවීම', lines: SECTIONS_EN.SEARCH.lines },
+                AI: { emoji: '🤖', title: 'AI සහායක', lines: SECTIONS_EN.AI.lines },
+                CREATIVE: { emoji: '🎨', title: 'නිර්මාණාත්මක මෙවලම්', lines: SECTIONS_EN.CREATIVE.lines },
+                QUIZ: { emoji: '🎯', title: 'Quiz සහ පුහුණුව', lines: SECTIONS_EN.QUIZ.lines },
+                STUDY: { emoji: '🧠', title: 'ඉගෙනුම් මෙවලම්', lines: SECTIONS_EN.STUDY.lines },
+                WRITING: { emoji: '✍️', title: 'ලේඛනය සහ Career', lines: SECTIONS_EN.WRITING.lines },
+                TOOLS: { emoji: '⏱️', title: 'Productivity', lines: SECTIONS_EN.TOOLS.lines },
+                LANG: { emoji: '🌐', title: 'භාෂාව', lines: SECTIONS_EN.LANG.lines },
+            };
+
+            const SECTIONS = lang === 'si' ? SECTIONS_SI : SECTIONS_EN;
+            const ORDER = ['PROFILE','TIMETABLE','SEARCH','AI','CREATIVE','QUIZ','STUDY','WRITING','TOOLS','LANG'];
+            const ALIASES = {
+                PROFILE: ['PROFILE','ME','MY'], TIMETABLE: ['TIMETABLE','TT','SCHEDULE'], SEARCH: ['SEARCH','FIND'],
+                AI: ['AI','ASKAI'], CREATIVE: ['CREATIVE','TOOLS2'], QUIZ: ['QUIZ','PRACTICE'],
+                STUDY: ['STUDY'], WRITING: ['WRITING','CAREER'], TOOLS: ['TOOLS','PRODUCTIVITY'], LANG: ['LANG','LANGUAGE'],
+            };
+
+            const headerBox = lang === 'si'
+                ? [`╔══════════════════════════════╗`, `  🎓 *SLIIT Y1S1 Assistant Bot*`, `╚══════════════════════════════╝`]
+                : [`╔════════════════════════════╗`, `  🎓 *SLIIT Y1S1 Assistant Bot*`, `╚════════════════════════════╝`];
+
+            let lines;
+            const wantCategory = ORDER.find(key => ALIASES[key].includes((arg1||'').toUpperCase()));
+
+            if ((arg1||'').toUpperCase() === 'ALL') {
+                // ── Full menu: every category, one after another ──────────────────
+                lines = [...headerBox, ``, greet, greeting, ``, `💬 _${quote}_`, ``];
+                if (lang !== 'si') {
+                    lines.push(`━━━━ 📌 *Registration* ━━━━`,``, `*REG IT26XXXXXX*`, `  Register with your SLIIT IT number`, ``);
+                } else {
+                    lines.push(`━━━━ 📌 *ලියාපදිංචිය* ━━━━`, ``, `*REG IT26XXXXXX*`, `  ඔබේ SLIIT IT number එකෙන් register වෙන්න`, ``);
+                }
+                for (const key of ORDER) {
+                    const s = SECTIONS[key];
+                    lines.push(`━━━━ ${s.emoji} *${s.title}* ━━━━`, ``, ...s.lines, ``);
+                }
+                lines.push(`━━━━ ℹ️ *${lang==='si'?'About':'About'}* ━━━━`, ``,
                     `📞 SLIIT Help: *+94 11 754 4801*`,
-                    `⚠️ _Not associated with SLIIT operations_`,
-                ];
+                    `⚠️ _Not associated with SLIIT operations_`);
+            } else if (wantCategory) {
+                // ── Single category detail view ────────────────────────────────────
+                const s = SECTIONS[wantCategory];
+                lines = [...headerBox, ``, `${s.emoji} *${s.title}*`, ``, ...s.lines, ``,
+                    lang==='si' ? `_සියලුම categories: *HELP*_` : `_Back to categories: *HELP*_`];
             } else {
-                lines = [
-                    `╔════════════════════════════╗`,
-                    `  🎓 *SLIIT Y1S1 Assistant Bot*`,
-                    `╚════════════════════════════╝`,
+                // ── Default: compact category index ────────────────────────────────
+                lines = [...headerBox, ``, greet, greeting, ``, `💬 _${quote}_`, ``];
+                if (lang === 'si') {
+                    lines.push(
+                        `📌 *ලියාපදිංචි නැත්නම්:* *REG IT26XXXXXX* යවන්න`,
+                        ``,
+                        `━━━━ 📂 *Categories* ━━━━`,
+                        ``,
+                    );
+                } else {
+                    lines.push(
+                        `📌 *Not registered yet?* Send *REG IT26XXXXXX*`,
+                        ``,
+                        `━━━━ 📂 *Categories* ━━━━`,
+                        ``,
+                    );
+                }
+                for (const key of ORDER) {
+                    const s = SECTIONS[key];
+                    lines.push(`*HELP ${key}*  ${s.emoji} ${s.title}`);
+                }
+                lines.push(
                     ``,
-                    greet, greeting, ``,
-                    `💬 _${quote}_`,
+                    lang==='si' ? `💡 _සියල්ල එකවර බැලීමට: *HELP ALL*_` : `💡 _Want everything in one message? Send *HELP ALL*_`,
                     ``,
-                    `━━━━ 📌 *Registration* ━━━━`,``,
-                    `*REG IT26XXXXXX*`,
-                    `  Register with your SLIIT IT number`,
-                    ``,
-                    `━━━━ 👤 *My Profile* ━━━━`,``,
-                    `*MYINFO*          📋 Your student profile`,
-                    `*MYGROUPS*        📊 Timetable & group info`,
-                    `*MYLINK*          🔗 Your WhatsApp group link`,
-                    `*MYEAC*           📚 Your EAC group info`,
-                    `*CLASSMATES*      👥 See your groupmates`,
-                    `*JOINGROUP WD01*  🏘️ Get any group link`,
-                    ``,
-                    `━━━━ 📅 *Timetable* ━━━━`,``,
-                    `*TODAY*      📆 Today's schedule`,
-                    `*TOMORROW*   📆 Tomorrow's classes`,
-                    `*NEXT*       ⏰ Next class now`,
-                    `*WEEK*       📋 Full weekly view`,
-                    `*TT Friday*  📅 Day-specific timetable`,
-                    ``,
-                    `━━━━ 🔍 *Search* ━━━━`,``,
-                    `*INFO IT26XXXXXX*  🔍 Any student info`,
-                    `*SEARCH <name>*    🔎 Search by name`,
-                    ``,
-                    `━━━━ 🤖 *AI Assistant* ━━━━`,``,
-                    `  💬 Reply to continue the chat`,
-                    `*SETAI llama*     🦙 Llama 3.3 70B`,
-                    `*SETAI gemini*    🟦 Google Gemma 2`,
-                    `*SETAI mistral*   ⚡ Mistral Saba`,
-                    `*SETAI deepseek*  🔬 DeepSeek R1`,
-                    `*QUOTE*           💬 Motivational quote`,
-                    `*ENDCHAT*         🔚 End AI session`,
-                    ``,
-                    `━━━━ 🎨 *Creative Tools* ━━━━`,``,
-                    `*IMAGE <description>*  🖼️ AI image`,
-                    `*SLIDES <topic>*       📊 AI presentation`,
-                    `*VIDEO <topic>*        🎬 Find tutorials`,
-                    ``,
-                    `━━━━ 🎯 *Quiz & Practice* ━━━━`,``,
-                    `*QUIZ*            🎯 Random quiz question`,
-                    `*QUIZ english*    📝 English grammar quiz`,
-                    `*QUIZ ielts*      🎓 IELTS practice`,
-                    `*QUIZ java*       ☕ Java quiz`,
-                    `*QUIZ python*     🐍 Python quiz`,
-                    `*QUIZ coding*     💻 Coding concepts`,
-                    `  💬 Just reply with your answer!`,
-                    `*LEADERBOARD*     🏆 Top quiz scorers`,
-                    `*MYSTATS*         📊 Your quiz stats`,
-                    ``,
-                    `━━━━ 🧠 *Study Tools* ━━━━`,``,
-                    `*SUMMARIZE <text>*  📝 AI summary of notes`,
-                    `*EXPLAIN <topic>*   💡 Simple explanation`,
-                    `*TRANSLATE <text>*  🌐 Sinhala ↔ English`,
-                    `*FLASHCARDS <topic>*  🗂️ Study flashcards`,
-                    `*DEFINE <term>*       📖 Quick definition`,
-                    `*CODE <paste code>*   💻 Explain/debug code`,
-                    `*GRAMMAR <text>*      ✏️ Fix grammar errors`,
-                    ``,
-                    `━━━━ ⏱️ *Productivity* ━━━━`,``,
-                    `*POMODORO*       🍅 25-min focus timer`,
-                    `*POMODORO 50*    🍅 Custom duration`,
-                    `*POMODORO STOP*  ⏹️ Cancel timer`,
-                    `*FACT*           💡 Random tech fact`,
-                    ``,
-                    `━━━━ 🌐 *Language* ━━━━`,``,
-                    `*LANG SI*  🇱🇰 Sinhala`,
-                    `*LANG EN*  🇬🇧 English (current)`,
-                    ``,
-                    `━━━━ ℹ️ *About* ━━━━`,``,
-                    `📞 SLIIT Help: *+94 11 754 4801*`,
-                    `⚠️ _Not associated with SLIIT operations_`,
-                ];
+                    lang==='si' ? `🔥 *Popular:* *ASK*, *QUIZ*, *TODAY*, *MYINFO*` : `🔥 *Popular:* *ASK <question>*, *QUIZ*, *TODAY*, *MYINFO*`,
+                );
             }
+
             if (isAdmin(sid)) lines.push(``, `🛡️ *Admin:* Send *ADMINHELP* for admin commands.`);
             await reply(withFooter(lines.join('\n')));
             return;
