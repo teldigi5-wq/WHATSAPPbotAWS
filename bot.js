@@ -77,6 +77,30 @@ DIFFICULTY: [easy/medium/hard]`;
         difficulty: (diffMatch?.[1]?.trim() || 'medium').replace(/[\[\]]/g, ''),
     };
 }
+// Central registry of every recognized top-level command. Used so the quiz-answer
+// handler (and any future "are we mid-flow" handler) never swallows a real command
+// as free-text input. ⚠️ When adding a new "if (cmd === 'X')" command handler below,
+// add its aliases here too.
+const KNOWN_COMMANDS = new Set([
+    'REG','MYINFO','MYGROUPS','MYLINK','MYEAC','EAC','CLASSMATES','GROUPMATES','JOINGROUP',
+    'TODAY','TOMORROW','NEXT','NEXTCLASS','WEEK','TT','TIMETABLE',
+    'INFO','SEARCH','FIND',
+    'ASK','AI','SETAI','USEAI','QUOTE','MOTIVATE','ENDCHAT',
+    'IMAGE','IMG','IMAGINE','SLIDES','PPT','PRESENTATION','VIDEO','YOUTUBE','YT',
+    'QUIZ','PRACTICE','Q','LEADERBOARD','LB','TOP','MYSTATS','STATS',
+    'SUMMARIZE','SUMMARY','TLDR','EXPLAIN','ELI5','TRANSLATE','TR',
+    'FLASHCARDS','CARDS','FC','DEFINE','DEF','WHATIS','CODE','DEBUG','GRAMMAR','CHECK','FIX',
+    'HUMANIZE','REWRITE','EMAIL','CITE','CITATION','STUDYPLAN','PLAN','INTERVIEW','MOCKINTERVIEW',
+    'POMODORO','TIMER','FOCUS','FACT','TECHFACT',
+    'DEADLINES','DEADLINE','MYDEADLINES','REMINDME','REMINDERS','UNREMIND',
+    'MOOD','CHECKIN','BREATHE','CALM','SUPPORT',
+    'GOALS','GOAL','HABITS','STREAK',
+    'LANG','HELP','HI','HELLO','START','MENU','YES','NO','Y','N',
+    'PROFILE','ME','MY','SCHEDULE','TOOLS2','PRODUCTIVITY','LANGUAGE','ALL','CREATIVE','STUDY','WRITING','CAREER','TOOLS','ASKAI',
+    'BOTSTATS','ADMINHELP','ADDMEMBER','FORCEREG','RMEMBER','LOOKUP','GROUPSTATUS','CREATEALLGROUPS',
+    'GROUPLINK','ADDTOGROUP','LISTADMINS','LISTBANNED','ADDADMIN','REMOVEADMIN','BAN','UNBAN','BROADCAST',
+    'ADDDEADLINE','RMDEADLINE','DEADLINEBROADCAST',
+]);
 function getAIProvider(jid) {
     const p = db.aiProvider && db.aiProvider[jid];
     if (p && AI_PROVIDERS[p]) return p;
@@ -274,6 +298,10 @@ let db = {
     waGroups:      {},   // slot_key → { jid, inviteLink, name, createdAt }
     projectGroups: {},   // project_group → { members: ["IT26XXXXXX", ...], addedBy, createdAt }
     quizStats:     {},   // jid → { correct, wrong, streak, bestStreak, total, lastAt }
+    deadlines:     [],   // [{ id, title, dueAt(ISO), targetGroup, createdBy, createdAt, notified24h, notified2h }]
+    deadlineSubs:  {},   // jid → true  (opted in to personal deadline reminders, default true once registered)
+    moodLog:       {},   // jid → [{ mood, at }]  (last ~10 kept)
+    habits:        {},   // jid → { habitName: { streak, lastDoneDate } }
 };
 
 // ─── WEB SERVER ───────────────────────────────────────────────────────────────
@@ -434,6 +462,10 @@ function loadDB() {
             if (!db.groupLinks)    db.groupLinks    = {};
             if (!db.aiSessions)    db.aiSessions    = {};
             if (!db.quizStats)     db.quizStats     = {};
+            if (!db.deadlines)     db.deadlines     = [];
+            if (!db.deadlineSubs)  db.deadlineSubs  = {};
+            if (!db.moodLog)       db.moodLog       = {};
+            if (!db.habits)        db.habits        = {};
             console.log(`📦 DB loaded — ${Object.keys(db.registrations).length} registrations, ${Object.keys(db.waGroups).length} WA groups`);
         }
     } catch(e) { console.error('DB load error:', e.message); }
@@ -1056,7 +1088,7 @@ async function processMessage(jid, msg, body) {
         if (isBanned(sid)) { console.log(`🚫 Banned user: ${jidNum(sid)}`); return; }
 
         // ── QUIZ ANSWER HANDLER — captures the reply to an active quiz ───────────
-        if (quizSessions.has(sid) && !['QUIZ','PRACTICE','Q','MYEAC','EAC','ASK','AI','HELP','HI','HELLO','START','MENU','MYINFO','SETAI','USEAI','ENDCHAT','LANG','LEADERBOARD','LB','TOP','MYSTATS','STATS','SUMMARIZE','SUMMARY','TLDR','TRANSLATE','TR','EXPLAIN','ELI5','IMAGE','IMG','IMAGINE','SLIDES','PPT','PRESENTATION','VIDEO','YT','YOUTUBE','FLASHCARDS','CARDS','FC','DEFINE','DEF','WHATIS','CODE','DEBUG','GRAMMAR','CHECK','FIX','FACT','TECHFACT','POMODORO','TIMER','FOCUS','HUMANIZE','REWRITE','EMAIL','CITE','CITATION','STUDYPLAN','PLAN','INTERVIEW','MOCKINTERVIEW','ALL','PROFILE','TIMETABLE','SEARCH','CREATIVE','STUDY','WRITING','TOOLS'].includes(cmd)) {
+        if (quizSessions.has(sid) && !KNOWN_COMMANDS.has(cmd)) {
             const qs = quizSessions.get(sid);
             const userAns = body.trim();
             const lang = getLang(sid);
@@ -1710,6 +1742,232 @@ Mix technical and behavioral questions appropriate for an entry-level/intern pos
             return;
         }
 
+        // ── DEADLINES — view upcoming assignment/exam deadlines ──────────────────
+        if (cmd === 'DEADLINES' || cmd === 'DEADLINE' || cmd === 'MYDEADLINES') {
+            const lang = getLang(sid);
+            const now = Date.now();
+            const upcoming = db.deadlines
+                .filter(d => new Date(d.dueAt).getTime() > now)
+                .sort((a,b) => new Date(a.dueAt) - new Date(b.dueAt));
+            if (upcoming.length === 0) {
+                await reply(withFooter(lang==='si'
+                    ? '✅ *දැනට deadline කිසිවක් නැත!*\n\nAdmin විසින් එකතු කළ විට මෙහි පෙන්වයි.'
+                    : '✅ *No upcoming deadlines right now!*\n\nThey\'ll show up here once an admin adds one.'));
+                return;
+            }
+            const lines = [
+                `╔══════════════════════════╗`,
+                `  📌 *Upcoming Deadlines*`,
+                `╚══════════════════════════╝`,
+                ``,
+            ];
+            upcoming.slice(0, 10).forEach(d => {
+                const due = new Date(d.dueAt);
+                const hoursLeft = Math.round((due.getTime() - now) / 3600000);
+                const daysLeft = Math.floor(hoursLeft / 24);
+                const timeLeft = daysLeft >= 1
+                    ? `${daysLeft} day${daysLeft!==1?'s':''} left`
+                    : `${hoursLeft}h left`;
+                const urgency = hoursLeft <= 24 ? '🔴' : hoursLeft <= 72 ? '🟡' : '🟢';
+                lines.push(`${urgency} *${d.title}*`, `   📅 ${due.toDateString()}  •  ⏳ ${timeLeft}`, ``);
+            });
+            lines.push(`_Reminders are sent automatically 24h and 2h before each deadline._`);
+            if (!db.deadlineSubs[sid] && db.deadlineSubs[sid] !== undefined) {
+                lines.push(`_You've muted reminders. Send *REMINDME* to re-enable._`);
+            } else {
+                lines.push(`_Send *UNREMIND* to mute automatic reminders._`);
+            }
+            await reply(withFooter(lines.join('\n')));
+            return;
+        }
+
+        // ── REMINDME / UNREMIND — toggle personal deadline reminders ─────────────
+        if (cmd === 'REMINDME' || cmd === 'UNREMIND') {
+            const lang = getLang(sid);
+            db.deadlineSubs[sid] = (cmd === 'REMINDME');
+            saveDB();
+            await reply(withFooter(cmd === 'REMINDME'
+                ? (lang==='si' ? '🔔 *Deadline reminders සක්‍රීයයි!*' : '🔔 *Deadline reminders enabled!* You\'ll get a heads-up 24h and 2h before each one.')
+                : (lang==='si' ? '🔕 *Deadline reminders නවත්වා ඇත.*' : '🔕 *Deadline reminders muted.* Send *REMINDME* to turn them back on.')));
+            return;
+        }
+
+        // ── MOOD / CHECKIN — quick wellbeing check-in ─────────────────────────────
+        if (cmd === 'MOOD' || cmd === 'CHECKIN') {
+            const lang = getLang(sid);
+            const moodWord = (arg1||'').toLowerCase();
+            const validMoods = { great:'😄', good:'🙂', okay:'😐', stressed:'😰', tired:'😴', sad:'😢' };
+            if (!validMoods[moodWord]) {
+                await reply(withFooter([
+                    lang==='si' ? '💭 *ඔයාට අද හැඟෙන්නේ කොහොමද?*' : '💭 *How are you feeling today?*',
+                    ``,
+                    `*MOOD great*     😄`,
+                    `*MOOD good*      🙂`,
+                    `*MOOD okay*      😐`,
+                    `*MOOD stressed*  😰`,
+                    `*MOOD tired*     😴`,
+                    `*MOOD sad*       😢`,
+                ].join('\n')));
+                return;
+            }
+            if (!db.moodLog[sid]) db.moodLog[sid] = [];
+            db.moodLog[sid].push({ mood: moodWord, at: Date.now() });
+            if (db.moodLog[sid].length > 10) db.moodLog[sid] = db.moodLog[sid].slice(-10);
+            saveDB();
+
+            const supportive = {
+                great: lang==='si' ? 'හරිම සතුටුයි! 🎉 මේ momentum එක continue කරන්න!' : "That's wonderful! 🎉 Keep that momentum going!",
+                good: lang==='si' ? 'හොඳයි! 🙂 Steady going!' : "Glad to hear it! 🙂 Steady as you go.",
+                okay: lang==='si' ? 'හරි, "okay" දවසක් වුණත් problem නැහැ. 💪' : "An 'okay' day is still a day you showed up. 💪",
+                stressed: lang==='si' ? 'තේරෙනවා. *BREATHE* try කරන්න, නැත්නම් *POMODORO* එකකින් ටික වෙලාවක් focus වෙන්න.' : "That's tough — try *BREATHE* for a quick reset, or break your work into one *POMODORO* session at a time.",
+                tired: lang==='si' ? 'Rest එක වැදගත්. හැකි නම් ටික වෙලාවක් විවේක ගන්න. 😴' : "Rest matters. If you can, take a short break before pushing on. 😴",
+                sad: lang==='si' ? 'ඒක දැනීම OK. ඔයාට බැරිනම් කතා කරන්න ලෑස්ති යමෙක් සොයන්න — SLIIT counselling services ද තියෙනවා.' : "It's okay to feel that way. If it helps, talk to someone you trust — SLIIT also has student counselling services available.",
+            };
+            await reply(withFooter([
+                `${validMoods[moodWord]} *Mood logged: ${moodWord}*`,
+                ``,
+                supportive[moodWord],
+                ``,
+                `_Checking in regularly can help you notice patterns. Send *MOOD* anytime._`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── BREATHE — guided breathing exercise (instant, no AI) ──────────────────
+        if (cmd === 'BREATHE' || cmd === 'CALM') {
+            const lang = getLang(sid);
+            await reply(withFooter(lang==='si' ? [
+                `🌬️ *හුස්ම ගැනීමේ අභ්‍යාසය*`,
+                ``,
+                `එක මොහොතක් ගන්න. මේ steps follow කරන්න:`,
+                ``,
+                `1️⃣ *හුස්ම ගන්න* — 4 ගණන් (1...2...3...4)`,
+                `2️⃣ *රඳවාගන්න* — 4 ගණන්`,
+                `3️⃣ *හුස්ම පිට කරන්න* — 6 ගණන්`,
+                `4️⃣ *නැවත කරන්න* — 4 වතාවක්`,
+                ``,
+                `මේක 4-7-8 breathing ලෙස හැඳින්වෙනවා — stress සහ anxiety අඩු කිරීමට පර්යේෂණවලින් support කරපු technique එකක්.`,
+                ``,
+                `_හැඟීම වැඩි දුර කරදරයක් නම්, කතා කිරීමට කෙනෙකු සොයන්න._`,
+            ].join('\n') : [
+                `🌬️ *Breathing Exercise*`,
+                ``,
+                `Take a moment. Follow these steps:`,
+                ``,
+                `1️⃣ *Breathe in* — count of 4 (1...2...3...4)`,
+                `2️⃣ *Hold* — count of 4`,
+                `3️⃣ *Breathe out* — count of 6`,
+                `4️⃣ *Repeat* — 4 times`,
+                ``,
+                `This is called 4-7-8 breathing — a research-backed technique for reducing stress and anxiety in the moment.`,
+                ``,
+                `_If things feel like more than you can manage alone, please reach out to someone you trust._`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── SUPPORT — student support / wellbeing resources ──────────────────────
+        if (cmd === 'SUPPORT') {
+            const lang = getLang(sid);
+            await reply(withFooter(lang==='si' ? [
+                `🤝 *සහාය සහ සම්පත්*`,
+                ``,
+                `ඔයාට අමාරුවක් දැනෙනවානම්, ඔයා තනියම නෙවෙයි.`,
+                ``,
+                `📞 *SLIIT Student Counselling*`,
+                `   ඔයාගේ campus reception හරහා සම්බන්ධ වෙන්න`,
+                ``,
+                `📞 *National Mental Health Helpline (Sri Lanka)*`,
+                `   1926 (24/7, free)`,
+                ``,
+                `💬 *Sumithrayo* (emotional support)`,
+                `   011 2 696 666 / 011 2 692 909`,
+                ``,
+                `🛠️ *Bot tools that might help right now:*`,
+                `*BREATHE* — quick calming exercise`,
+                `*MOOD* — check in with how you're feeling`,
+                `*POMODORO* — break work into manageable chunks`,
+                `*STUDYPLAN* — reduce overwhelm with a clear plan`,
+            ].join('\n') : [
+                `🤝 *Support & Resources*`,
+                ``,
+                `If you're struggling, you're not alone.`,
+                ``,
+                `📞 *SLIIT Student Counselling*`,
+                `   Reach out via your campus reception`,
+                ``,
+                `📞 *National Mental Health Helpline (Sri Lanka)*`,
+                `   1926 (24/7, free)`,
+                ``,
+                `💬 *Sumithrayo* (emotional support, confidential)`,
+                `   011 2 696 666 / 011 2 692 909`,
+                ``,
+                `🛠️ *Bot tools that might help right now:*`,
+                `*BREATHE* — quick calming exercise`,
+                `*MOOD* — check in with how you're feeling`,
+                `*POMODORO* — break work into manageable chunks`,
+                `*STUDYPLAN* — reduce overwhelm with a clear plan`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── GOALS / HABITS — simple daily habit tracker with streaks ─────────────
+        if (cmd === 'GOALS' || cmd === 'GOAL' || cmd === 'HABITS' || cmd === 'STREAK') {
+            const lang = getLang(sid);
+            if (!db.habits[sid]) db.habits[sid] = {};
+            const userHabits = db.habits[sid];
+
+            if (!arg1) {
+                const entries = Object.entries(userHabits);
+                if (entries.length === 0) {
+                    await reply(withFooter(lang==='si'
+                        ? '🎯 *තවම habits නැත.*\n\nඑකතු කරන්න: *GOALS ADD <habit name>*\nඋදා: *GOALS ADD Study 1 hour*'
+                        : '🎯 *No habits tracked yet.*\n\nAdd one: *GOALS ADD <habit name>*\nExample: *GOALS ADD Study 1 hour*\nThen check it off daily with *GOALS DONE <habit name>*'));
+                    return;
+                }
+                const today = new Date().toDateString();
+                const lines = [`╔══════════════════════════╗`, `  🎯 *Your Habits*`, `╚══════════════════════════╝`, ``];
+                entries.forEach(([name, h]) => {
+                    const doneToday = h.lastDoneDate === today;
+                    lines.push(`${doneToday ? '✅' : '⬜'} *${name}*  —  🔥 ${h.streak} day streak`);
+                });
+                lines.push(``, `_*GOALS DONE <name>* to check off today_`, `_*GOALS ADD <name>* for a new habit_`);
+                await reply(withFooter(lines.join('\n')));
+                return;
+            }
+
+            const sub = arg1.toUpperCase();
+            if (sub === 'ADD') {
+                const habitName = body.replace(/^(GOALS|GOAL|HABITS|STREAK)\s+ADD\s*/i, '').trim();
+                if (!habitName) { await reply(withFooter('❌ Give your habit a name. Example: *GOALS ADD Study 1 hour*')); return; }
+                if (Object.keys(userHabits).length >= 5) { await reply(withFooter('⚠️ Max 5 habits at a time. Remove one to add more (coming soon) or keep using your current set!')); return; }
+                userHabits[habitName] = { streak: 0, lastDoneDate: null };
+                saveDB();
+                await reply(withFooter(`✅ *Habit added: "${habitName}"*\n\nSend *GOALS DONE ${habitName}* whenever you complete it today!`));
+                return;
+            }
+            if (sub === 'DONE') {
+                const habitName = body.replace(/^(GOALS|GOAL|HABITS|STREAK)\s+DONE\s*/i, '').trim();
+                const match = Object.keys(userHabits).find(h => h.toLowerCase() === habitName.toLowerCase());
+                if (!match) { await reply(withFooter(`❌ Habit "${habitName}" not found. Send *GOALS* to see your list.`)); return; }
+                const h = userHabits[match];
+                const today = new Date().toDateString();
+                const yesterday = new Date(Date.now() - 86400000).toDateString();
+                if (h.lastDoneDate === today) {
+                    await reply(withFooter(`✅ Already checked off today! 🔥 Streak: ${h.streak} days`));
+                    return;
+                }
+                h.streak = (h.lastDoneDate === yesterday) ? h.streak + 1 : 1;
+                h.lastDoneDate = today;
+                saveDB();
+                const milestone = [3,7,14,30,60,100].includes(h.streak) ? ` 🎉 *${h.streak}-day milestone!*` : '';
+                await reply(withFooter(`✅ *"${match}" done!*  🔥 Streak: ${h.streak} day${h.streak!==1?'s':''}${milestone}`));
+                return;
+            }
+            await reply(withFooter('❓ Usage: *GOALS* (view) | *GOALS ADD <name>* | *GOALS DONE <name>*'));
+            return;
+        }
+
         // ── ENDCHAT ───────────────────────────────────────────────────────
         if (body.trim().toUpperCase() === 'ENDCHAT') {
             const lang = getLang(sid);
@@ -1871,6 +2129,17 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                     `*POMODORO 50*    🍅 Custom duration`,
                     `*POMODORO STOP*  ⏹️ Cancel timer`,
                     `*FACT*           💡 Random tech fact`,
+                    `*GOALS*              🎯 Daily habit tracker`,
+                    `*GOALS ADD <name>*   ➕ Add a new habit`,
+                    `*GOALS DONE <name>*  ✅ Check off today`,
+                ]},
+                WELLBEING: { emoji: '💚', title: 'Deadlines & Wellbeing', lines: [
+                    `*DEADLINES*      📌 Upcoming assignments/exams`,
+                    `*REMINDME*       🔔 Enable deadline reminders`,
+                    `*UNREMIND*       🔕 Mute deadline reminders`,
+                    `*MOOD*           💭 Quick wellbeing check-in`,
+                    `*BREATHE*        🌬️ Guided breathing exercise`,
+                    `*SUPPORT*        🤝 Counselling & help resources`,
                 ]},
                 LANG: { emoji: '🌐', title: 'Language', lines: [
                     `*LANG SI*  🇱🇰 Sinhala`,
@@ -1889,15 +2158,17 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                 STUDY: { emoji: '🧠', title: 'ඉගෙනුම් මෙවලම්', lines: SECTIONS_EN.STUDY.lines },
                 WRITING: { emoji: '✍️', title: 'ලේඛනය සහ Career', lines: SECTIONS_EN.WRITING.lines },
                 TOOLS: { emoji: '⏱️', title: 'Productivity', lines: SECTIONS_EN.TOOLS.lines },
+                WELLBEING: { emoji: '💚', title: 'කාල සීමා සහ සුවතාව', lines: SECTIONS_EN.WELLBEING.lines },
                 LANG: { emoji: '🌐', title: 'භාෂාව', lines: SECTIONS_EN.LANG.lines },
             };
 
             const SECTIONS = lang === 'si' ? SECTIONS_SI : SECTIONS_EN;
-            const ORDER = ['PROFILE','TIMETABLE','SEARCH','AI','CREATIVE','QUIZ','STUDY','WRITING','TOOLS','LANG'];
+            const ORDER = ['PROFILE','TIMETABLE','SEARCH','AI','CREATIVE','QUIZ','STUDY','WRITING','TOOLS','WELLBEING','LANG'];
             const ALIASES = {
                 PROFILE: ['PROFILE','ME','MY'], TIMETABLE: ['TIMETABLE','TT','SCHEDULE'], SEARCH: ['SEARCH','FIND'],
                 AI: ['AI','ASKAI'], CREATIVE: ['CREATIVE','TOOLS2'], QUIZ: ['QUIZ','PRACTICE'],
                 STUDY: ['STUDY'], WRITING: ['WRITING','CAREER'], TOOLS: ['TOOLS','PRODUCTIVITY'], LANG: ['LANG','LANGUAGE'],
+                WELLBEING: ['WELLBEING','DEADLINES','SUPPORT'],
             };
 
             const headerBox = lang === 'si'
@@ -1921,6 +2192,7 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                 }
                 lines.push(`━━━━ ℹ️ *${lang==='si'?'About':'About'}* ━━━━`, ``,
                     `📞 SLIIT Help: *+94 11 754 4801*`,
+                    `🤖 *BOTSTATS* — bot status & uptime`,
                     `⚠️ _Not associated with SLIIT operations_`);
             } else if (wantCategory) {
                 // ── Single category detail view ────────────────────────────────────
@@ -2674,9 +2946,14 @@ Keep bullets under 8 words each. Make it professional.`;
                 `*BROADCAST <message>*`,
                 `  → Send message to ALL registered users`,
                 ``,
+                `*ADDDEADLINE <YYYY-MM-DD HH:MM> | <Title>*`,
+                `  → Add a deadline with auto-reminders (24h & 2h before)`,
+                `*RMDEADLINE <id>*`,
+                `  → Remove a deadline (send alone to list IDs)`,
+                ``,
                 `━━━━ 📊 *Info & Status* ━━━━`,
                 ``,
-                `*STATS*              → Bot statistics`,
+                `*BOTSTATS*           → Bot statistics`,
                 `*LISTADMINS*         → List all admins`,
                 `*LISTBANNED*         → List banned users`,
                 `*GROUPSTATUS*        → All WA group slots & member counts`,
@@ -2777,7 +3054,7 @@ Keep bullets under 8 words each. Make it professional.`;
         }
 
         // ── STATS ─────────────────────────────────────────────────────────────
-        if (cmd === 'STATS') {
+        if (cmd === 'BOTSTATS') {
             const slotCount = Object.keys(db.waGroups).length;
             const allPGs    = [...new Set(Object.values(STUDENTS).map(s => s.project_group))].length;
             const regCount  = Object.keys(db.registrations).length;
@@ -3155,6 +3432,76 @@ Keep bullets under 8 words each. Make it professional.`;
             return;
         }
 
+        // ── ADDDEADLINE — admin creates a deadline with auto-reminders ───────────
+        if (cmd === 'ADDDEADLINE') {
+            if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
+            // Usage: ADDDEADLINE <YYYY-MM-DD HH:MM> | <Title>
+            const raw = rest;
+            const sepIdx = raw.indexOf('|');
+            if (sepIdx === -1) {
+                await reply(withFooter([
+                    `❌ *Usage:* *ADDDEADLINE <YYYY-MM-DD HH:MM> | <Title>*`,
+                    ``,
+                    `Example: *ADDDEADLINE 2026-06-20 23:59 | OOP Assignment 2 submission*`,
+                    ``,
+                    `Reminders are sent automatically 24h and 2h before, to all opted-in registered students.`,
+                ].join('\n')));
+                return;
+            }
+            const dateStr = raw.slice(0, sepIdx).trim();
+            const title = raw.slice(sepIdx + 1).trim();
+            const dueDate = new Date(dateStr.replace(' ', 'T') + ':00+05:30'); // Sri Lanka time
+            if (isNaN(dueDate.getTime()) || !title) {
+                await reply(withFooter('❌ Invalid date or missing title. Format: *ADDDEADLINE 2026-06-20 23:59 | Title*'));
+                return;
+            }
+            if (dueDate.getTime() <= Date.now()) {
+                await reply(withFooter('❌ That date is in the past. Use a future date/time.'));
+                return;
+            }
+            const deadline = {
+                id: 'dl_' + Date.now(),
+                title,
+                dueAt: dueDate.toISOString(),
+                createdBy: jidNum(sid),
+                createdAt: nowISO(),
+                notified24h: false,
+                notified2h: false,
+            };
+            db.deadlines.push(deadline);
+            saveDB();
+            const hoursAway = Math.round((dueDate.getTime() - Date.now()) / 3600000);
+            await reply(withFooter([
+                `✅ *Deadline Added!*`,
+                ``,
+                `📌 *${title}*`,
+                `📅 Due: ${dueDate.toDateString()} at ${dueDate.toTimeString().slice(0,5)}`,
+                `⏳ ${hoursAway < 24 ? hoursAway + 'h' : Math.floor(hoursAway/24) + ' days'} from now`,
+                ``,
+                `Students will be reminded automatically 24h and 2h before.`,
+                `_View with: *DEADLINES* | Remove with: *RMDEADLINE ${deadline.id}*_`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── RMDEADLINE — admin removes a deadline ─────────────────────────────────
+        if (cmd === 'RMDEADLINE') {
+            if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
+            if (!arg1) {
+                const lines = db.deadlines.map(d => `• ${d.id}  —  ${d.title}`);
+                await reply(withFooter(lines.length
+                    ? `📌 *Deadline IDs:*\n\n${lines.join('\n')}\n\nUsage: *RMDEADLINE <id>*`
+                    : 'No deadlines exist yet.'));
+                return;
+            }
+            const idx = db.deadlines.findIndex(d => d.id === arg1);
+            if (idx === -1) { await reply(withFooter(`❌ Deadline "${arg1}" not found. Send *RMDEADLINE* alone to list IDs.`)); return; }
+            const removed = db.deadlines.splice(idx, 1)[0];
+            saveDB();
+            await reply(withFooter(`✅ *Removed deadline:* ${removed.title}`));
+            return;
+        }
+
         // ── Unknown command ────────────────────────────────────────────────────
         if (parts.length === 1 && cmd.length < 20) {
             await reply(withFooter([
@@ -3168,6 +3515,55 @@ Keep bullets under 8 words each. Make it professional.`;
         console.error(`❌ processMessage error: ${e.message}`, e.stack);
     }
 }
+
+// ─── DEADLINE REMINDER ENGINE ──────────────────────────────────────────────────
+// Checks every 5 minutes for deadlines crossing the 24h or 2h mark and notifies
+// all opted-in registered students via the existing low-priority broadcast queue.
+async function checkDeadlineReminders() {
+    if (!botReady || !db.deadlines || db.deadlines.length === 0) return;
+    const now = Date.now();
+    let dbChanged = false;
+
+    for (const d of db.deadlines) {
+        const dueAt = new Date(d.dueAt).getTime();
+        const hoursLeft = (dueAt - now) / 3600000;
+        if (hoursLeft < 0) continue; // already passed
+
+        let shouldNotify = null;
+        if (!d.notified24h && hoursLeft <= 24) { shouldNotify = '24h'; d.notified24h = true; }
+        else if (!d.notified2h && hoursLeft <= 2) { shouldNotify = '2h'; d.notified2h = true; }
+        if (!shouldNotify) continue;
+
+        dbChanged = true;
+        const due = new Date(d.dueAt);
+        const urgencyEmoji = shouldNotify === '2h' ? '🚨' : '⏰';
+        const text = withFooter([
+            `${urgencyEmoji} *Deadline Reminder*`,
+            ``,
+            `📌 *${d.title}*`,
+            `📅 Due: ${due.toDateString()} at ${due.toTimeString().slice(0,5)}`,
+            `⏳ *${shouldNotify === '2h' ? 'Only 2 hours left!' : '24 hours left'}*`,
+            ``,
+            shouldNotify === '2h'
+                ? `_Submit now if you haven't already!_`
+                : `_Plan your remaining time — try *STUDYPLAN* or a *POMODORO* session._`,
+        ].join('\n'));
+
+        const targets = Object.keys(db.registrations).filter(jid => db.deadlineSubs[jid] !== false);
+        console.log(`⏰ Sending ${shouldNotify} deadline reminder for "${d.title}" to ${targets.length} students`);
+        for (const t of targets) {
+            enqueueBroadcast(t, { text }).catch(() => {});
+        }
+    }
+
+    // Clean up deadlines that are >7 days past due to keep the list tidy
+    const before = db.deadlines.length;
+    db.deadlines = db.deadlines.filter(d => (now - new Date(d.dueAt).getTime()) < 7 * 24 * 3600000);
+    if (db.deadlines.length !== before) dbChanged = true;
+
+    if (dbChanged) saveDB();
+}
+setInterval(() => { checkDeadlineReminders().catch(e => console.error('Deadline reminder error:', e.message)); }, 5 * 60 * 1000);
 
 // ─── HEALTH WATCHDOG ─────────────────────────────────────────────────────────
 // Checks every 3 minutes if bot is stuck (connected but not processing).
