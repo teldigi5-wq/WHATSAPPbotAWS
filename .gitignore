@@ -14,6 +14,8 @@ Thumbs.db
 # Railway-specific files (no longer needed on AWS)
 railway.toml
 nixpacks.toml
+
+# Secrets & backups — never commit these
 *.pem
 *.backup*
 ecosystem_config.js
