@@ -14,6 +14,7 @@ module.exports = {
       max_restarts: 10,
       restart_delay: 5000,    // 5s between restarts
       max_memory_restart: '400M',
+      cron_restart: '0 4 * * *', // safety restart daily at 4am LK time — clears memory/session drift
 
       env: {
         NODE_ENV: 'production',

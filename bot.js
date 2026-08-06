@@ -15,6 +15,479 @@ const PORT        = process.env.PORT || 8080;
 // Your number — plain digits, no @s.whatsapp.net
 const SUPER_ADMIN = process.env.SUPER_ADMIN || '94772197530';
 const SUPER_ADMIN_LIDS = ['20985227042855'];
+
+
+async function callGroq(model, question, sys, history, maxTokens) {
+    const key = process.env.GROQ_API_KEY || '';
+    if (!key) throw new Error('No Groq key');
+    const messages = [{ role: 'system', content: sys }];
+    if (history && history.length > 0) {
+        messages.push(...history.slice(-8));
+    } else {
+        messages.push({ role: 'user', content: question });
+    }
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+key},
+        body: JSON.stringify({ model, max_tokens: maxTokens || 900, messages, temperature: 0.7 })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error.message||JSON.stringify(d.error));
+    return d?.choices?.[0]?.message?.content || 'No answer.';
+}
+
+const AI_PROVIDERS = {
+    gemini: { name: 'Google Gemma 2', emoji: '🟦', call: async (q,s,h,mt) => callGroq('llama-3.1-8b-instant', q, s, h, mt) },
+    llama:  { name: 'Llama 3.3 70B',  emoji: '🦙', call: async (q,s,h,mt) => callGroq('llama-3.3-70b-versatile', q, s, h, mt) },
+    mistral:{ name: 'Mistral Saba',   emoji: '⚡', call: async (q,s,h,mt) => callGroq('mistral-saba-24b', q, s, h, mt) },
+    deepseek:{ name: 'DeepSeek R1',   emoji: '🔬', call: async (q,s,h,mt) => callGroq('deepseek-r1-distill-llama-70b', q, s, h, mt) }
+};
+const QUIZ_CATEGORY_MAP = {
+    english: 'English grammar (fill in the blank, correct the sentence, or choose the right word)',
+    grammar: 'English grammar rules and usage',
+    ielts: 'IELTS exam preparation (vocabulary, reading comprehension, or writing task)',
+    speaking: 'English speaking and communication skills',
+    java: 'Java programming (syntax, OOP, data structures)',
+    python: 'Python programming (syntax, functions, data structures)',
+    html: 'HTML, CSS, or basic web development',
+    coding: 'Programming concepts (algorithms, debugging, logic)',
+    pseudo: 'Pseudocode writing or algorithm logic',
+    all: 'any of: English grammar, IELTS, Java, Python, HTML, or programming concepts',
+};
+async function generateQuizQuestion(prov, cat) {
+    const catDesc = QUIZ_CATEGORY_MAP[cat] || QUIZ_CATEGORY_MAP.all;
+    const prompt = `Create ONE quiz question about: ${catDesc}
+For SLIIT Year 1 university students.
+
+Reply in EXACTLY this format (no extra text):
+QUESTION: [the question - make it clear and specific]
+ANSWER: [the correct answer - be concise]
+CATEGORY: [${cat === 'all' ? 'detected category' : cat}]
+DIFFICULTY: [easy/medium/hard]`;
+    const result = await prov.call(prompt, 'You are a university quiz creator. Create clear, educational questions.', [], 350);
+    const qMatch    = result.match(/QUESTION:\s*(.+)/i);
+    const aMatch    = result.match(/ANSWER:\s*(.+)/i);
+    const catMatch  = result.match(/CATEGORY:\s*(.+)/i);
+    const diffMatch = result.match(/DIFFICULTY:\s*(.+)/i);
+    if (!qMatch || !aMatch) throw new Error('Bad format');
+    return {
+        question: qMatch[1].trim(),
+        answer: aMatch[1].trim(),
+        category: (catMatch?.[1]?.trim() || cat).replace(/[\[\]]/g, ''),
+        difficulty: (diffMatch?.[1]?.trim() || 'medium').replace(/[\[\]]/g, ''),
+    };
+}
+// Central registry of every recognized top-level command. Used so the quiz-answer
+// handler (and any future "are we mid-flow" handler) never swallows a real command
+// as free-text input. ⚠️ When adding a new "if (cmd === 'X')" command handler below,
+// add its aliases here too.
+const KNOWN_COMMANDS = new Set([
+    'REG','MYINFO','MYGROUPS','MYLINK','MYEAC','EAC','CLASSMATES','GROUPMATES','JOINGROUP',
+    'TODAY','TOMORROW','NEXT','NEXTCLASS','WEEK','TT','TIMETABLE',
+    'INFO','SEARCH','FIND',
+    'ASK','AI','SETAI','USEAI','QUOTE','MOTIVATE','ENDCHAT',
+    'IMAGE','IMG','IMAGINE','SLIDES','PPT','PRESENTATION','VIDEO','YOUTUBE','YT',
+    'QUIZ','PRACTICE','Q','LEADERBOARD','LB','TOP','MYSTATS','STATS',
+    'SUMMARIZE','SUMMARY','TLDR','EXPLAIN','ELI5','TRANSLATE','TR',
+    'FLASHCARDS','CARDS','FC','DEFINE','DEF','WHATIS','CODE','DEBUG','GRAMMAR','CHECK','FIX',
+    'HUMANIZE','REWRITE','EMAIL','CITE','CITATION','STUDYPLAN','PLAN','INTERVIEW','MOCKINTERVIEW',
+    'POMODORO','TIMER','FOCUS','FACT','TECHFACT',
+    'DEADLINES','DEADLINE','MYDEADLINES','REMINDME','REMINDERS','UNREMIND',
+    'MOOD','CHECKIN','BREATHE','CALM','SUPPORT',
+    'GOALS','GOAL','HABITS','STREAK',
+    'LANG','HELP','HI','HELLO','START','MENU','YES','NO','Y','N',
+    'PROFILE','ME','MY','SCHEDULE','TOOLS2','PRODUCTIVITY','LANGUAGE','ALL','CREATIVE','STUDY','WRITING','CAREER','TOOLS','ASKAI',
+    'BOTSTATS','ADMINHELP','ADDMEMBER','FORCEREG','RMEMBER','LOOKUP','GROUPSTATUS','CREATEALLGROUPS',
+    'GROUPLINK','ADDTOGROUP','LISTADMINS','LISTBANNED','ADDADMIN','REMOVEADMIN','BAN','UNBAN','BROADCAST',
+    'ADDDEADLINE','RMDEADLINE','DEADLINEBROADCAST',
+]);
+function getAIProvider(jid) {
+    const p = db.aiProvider && db.aiProvider[jid];
+    if (p && AI_PROVIDERS[p]) return p;
+    return 'llama';
+} // LID fallback for super admin
+
+// Bot credit shown at the bottom of every reply
+const BOT_FOOTER = [
+    ``,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `🤖 *Created by Poojana Kaveesh*`,
+    `🆔 IT26101524  |  📱 94772197530`,
+].join('\n');
+
+// ─── LOAD STUDENTS DATA ───────────────────────────────────────────────────────
+let STUDENTS = {};
+try {
+    STUDENTS = require('./students.json');
+    console.log(`📚 Students loaded: ${Object.keys(STUDENTS).length}`);
+} catch(e) {
+    console.error('❌ students.json not found:', e.message);
+}
+
+// ─── LOAD TIMETABLE DATA ──────────────────────────────────────────────────────
+let TIMETABLE = {};
+try {
+    TIMETABLE = require('./timetable.json');
+    console.log(`📅 Timetable loaded: ${Object.keys(TIMETABLE).length} groups`);
+} catch(e) {
+    console.warn('⚠️  timetable.json not found — TIMETABLE command will be unavailable');
+}
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let latestQR  = null;
+let botReady  = false;
+let botStatus = 'starting';
+let sock      = null;
+let reconnectAttempts = 0;
+let qrAttempts        = 0;
+let sessionStableAt  = 0;   // timestamp when session is considered stable
+let DATA_PATH = '/tmp/botdata';
+let AUTH_PATH = '/tmp/botdata/auth';
+let DB_PATH   = '/tmp/botdata/database.json';
+
+// ─── STORE STUB + LID RESOLUTION ─────────────────────────────────────────────
+// makeInMemoryStore removed in newer Baileys — use a lightweight stub.
+const store = { contacts: {}, loadMessage: async () => null, bind: () => {} };
+
+// LID → phone JID map, populated from contacts.upsert events
+const lidToPhone = new Map();
+const aiConversations = new Map();
+const quizSessions = new Map(); // jid → { question, answer, category, asked, setInfo? }
+const pomodoroTimers = new Map(); // jid → { workTimeout, breakTimeout }
+
+// ─── EAC GROUPING DATA (English for Academic Communication) ─────────────────
+const EAC_GROUPS = {"IT25101376":"01A","IT26101585":"01A","IT26100489":"01A","IT26102176":"01A","IT26101615":"01A","IT26101987":"01A","IT26101590":"01A","IT26102097":"01A","IT26102008":"01A","IT26101409":"01A","IT26101393":"01A","IT26101328":"01A","IT26102047":"01A","IT26101657":"01A","IT26101358":"01A","IT26102042":"01A","IT26101614":"01A","IT26101675":"01A","IT26101571":"01A","IT26101737":"01A","IT26101238":"01A","IT26101610":"01A","IT26101602":"01A","IT26101600":"01A","IT26101204":"01A","IT26101744":"01A","IT26101467":"01A","IT26101576":"01A","IT26101805":"01A","IT26101797":"01A","IT26100013":"01A","IT26101901":"01B","IT26101607":"01B","IT26101332":"01B","IT26101985":"01B","IT26102103":"01B","IT26300138":"01B","IT26101228":"01B","IT26101260":"01B","IT26101579":"01B","IT26101284":"01B","IT26101331":"01B","IT26101673":"01B","IT26101992":"01B","IT26102059":"01B","IT26101620":"01B","IT26102002":"01B","IT26101235":"01B","IT26101241":"01B","IT26101629":"01B","IT26200849":"01B","IT26102055":"01B","IT26101893":"01B","IT26101444":"01B","IT26102037":"01B","IT26102018":"01B","IT26101384":"01B","IT26102004":"01B","IT26101589":"01B","IT26101455":"01B","IT26101880":"01B","IT26101333":"01C","IT26101700":"01C","IT26102045":"01C","IT26100956":"01C","IT26101323":"01C","IT26102105":"01C","IT26101691":"01C","IT26101262":"01C","IT26101316":"01C","IT26100944":"01C","IT26101626":"01C","IT26101236":"01C","IT26101237":"01C","IT26101983":"01C","IT26101674":"01C","IT26101688":"01C","IT26101443":"01C","IT26101678":"01C","IT26102031":"01C","IT26100212":"01C","IT26101448":"01C","IT26101651":"01C","IT26101245":"01C","IT26101704":"01C","IT26101990":"01C","IT26101259":"01C","IT26101611":"01C","IT26101642":"01C","IT26101244":"01D","IT26101888":"01D","IT26101129":"01D","IT26101643":"01D","IT26101210":"01D","IT26102104":"01D","IT26101507":"01D","IT26101266":"01D","IT26102041":"01D","IT26101682":"01D","IT26101597":"01D","IT26101672":"01D","IT26102102":"01D","IT26101680":"01D","IT26101697":"01D","IT26101291":"01D","IT26101242":"01D","IT26101454":"01D","IT26101738":"01D","IT26101632":"01D","IT26101997":"01D","IT26101972":"01D","IT26100573":"01D","IT26101367":"02A","IT26101382":"02A","IT26101318":"02A","IT26102144":"02A","IT26101742":"02A","IT26101363":"02A","IT26101512":"02A","IT26101898":"02A","IT26101530":"02A","IT26101522":"02A","IT26101484":"02A","IT26101892":"02A","IT26101735":"02A","IT26101912":"02A","IT26101523":"02A","IT26101946":"02A","IT26101247":"02A","IT26101432":"02A","IT26101301":"02A","IT26101870":"02A","IT26102015":"02A","IT26102107":"02A","IT26102076":"02A","IT26101430":"02A","IT26102017":"02A","IT26102023":"02A","IT26101365":"02A","IT26101490":"02A","IT26101268":"02A","IT26101250":"02A","IT26100718":"02B","IT26101955":"02B","IT26102116":"02B","IT26200228":"02B","IT26101524":"02B","IT26101962":"02B","IT26101628":"02B","IT26101324":"02B","IT26101353":"02B","IT26101801":"02B","IT26102141":"02B","IT26101531":"02B","IT26101889":"02B","IT26101453":"02B","IT26101964":"02B","IT26101658":"02B","IT26101369":"02B","IT26101370":"02B","IT26101319":"02B","IT26101225":"02B","IT26101340":"02B","IT26101337":"02B","IT26101942":"02B","IT26101427":"02B","IT26101469":"02B","IT26101789":"02B","IT26101230":"02B","IT26101953":"02B","IT26101344":"02B","IT26101465":"02B","IT26101639":"02C","IT26101660":"02C","IT26101456":"02C","IT26101285":"02C","IT26101275":"02C","IT26101806":"02C","IT26101528":"02C","IT26101533":"02C","IT26101956":"02C","IT26102112":"02C","IT26101570":"02C","IT26101214":"02C","IT26101223":"02C","IT26101401":"02C","IT26102106":"02C","IT26101313":"02C","IT26101787":"02C","IT26101802":"02C","IT26102113":"02C","IT26101295":"02C","IT26102110":"02C","IT26102108":"02C","IT26101479":"02C","IT26102012":"02C","IT26101716":"02C","IT26101272":"02C","IT26101277":"02C","IT26102114":"02C","IT26102039":"02C","IT26101525":"02D","IT26101520":"02D","IT26101513":"02D","IT26101351":"02D","IT26102115":"02D","IT26101299":"02D","IT26101334":"02D","IT26102150":"02D","IT26101470":"02D","IT26101438":"02D","IT26101421":"02D","IT26101809":"02D","IT26101526":"02D","IT26101482":"02D","IT26102149":"02D","IT26102065":"02D","IT26101822":"02D","IT26101491":"02D","IT26101480":"02D","IT26101349":"02D","IT26102046":"02D","IT26102109":"02D","IT26101362":"02D","IT26101496":"02D","IT26101750":"02D","IT26101212":"02D","IT26102030":"02D","IT26101508":"02D","IT26101795":"02D","IT26101372":"03A","IT26101293":"03A","IT26101646":"03A","IT26101618":"03A","IT26102021":"03A","IT26101966":"03A","IT26101720":"03A","IT26101891":"03A","IT26100262":"03A","IT26102019":"03A","IT26101996":"03A","IT26101968":"03A","IT26101662":"03A","IT26101420":"03A","IT26101355":"03A","IT26101303":"03A","IT26101655":"03A","IT26101568":"03A","IT26101932":"03A","IT26101373":"03A","IT26102003":"03A","IT26101488":"03A","IT26101919":"03A","IT26101248":"03A","IT26101900":"03A","IT26101941":"03A","IT26101950":"03A","IT26101604":"03A","IT26101389":"03A","IT26101812":"03A","IT26102142":"03B","IT26101917":"03B","IT26101743":"03B","IT26101696":"03B","IT26101935":"03B","IT26101954":"03B","IT26100693":"03B","IT26101622":"03B","IT26102034":"03B","IT26101690":"03B","IT26101770":"03B","IT26102058":"03B","IT26101428":"03B","IT26102032":"03B","IT26101631":"03B","IT26101929":"03B","IT26101322":"03B","IT26101807":"03B","IT26101573":"03B","IT26101361":"03B","IT26101577":"03B","IT26200749":"03B","IT26101297":"03B","IT26102127":"03B","IT26101599":"03B","IT26450013":"03B","IT26101414":"03B","IT26101958":"03B","IT26101498":"03B","IT26101398":"03B","IT26101412":"03C","IT26101984":"03C","IT26101908":"03C","IT26101417":"03C","IT26101474":"03C","IT26300323":"03C","IT26101625":"03C","IT26101410":"03C","IT26100543":"03C","IT26101725":"03C","IT26101406":"03C","IT26101635":"03C","IT26101364":"03C","IT26101429":"03C","IT26102075":"03C","IT26101803":"03C","IT26101582":"03C","IT26101653":"03C","IT26101377":"03C","IT26101978":"03C","IT26101203":"03C","IT26101796":"03C","IT26101936":"03C","IT26102111":"03C","IT26101904":"03C","IT26101825":"03C","IT26101913":"03C","IT26101494":"03C","IT26101613":"03C","IT26101823":"03D","IT26102143":"03D","IT26101400":"03D","IT26101434":"03D","IT26101980":"03D","IT26101986":"03D","IT26100739":"03D","IT26102048":"03D","IT26100407":"03D","IT26102148":"03D","IT26101317":"03D","IT26101883":"03D","IT26101925":"03D","IT26101379":"03D","IT26101606":"03D","IT26101909":"03D","IT26101619":"03D","IT26101595":"03D","IT26101376":"03D","IT26101882":"03D","IT26101767":"03D","IT26101937":"03D","IT26101222":"03D","IT26101475":"04A","IT26101396":"04A","IT26101307":"04A","IT26101495":"04A","IT26101407":"04A","IT26101995":"04A","IT26101464":"04A","IT26101722":"04A","IT26100189":"04A","IT26101793":"04A","IT26101258":"04A","IT26101719":"04A","IT26101306":"04A","IT26101617":"04A","IT26101342":"04A","IT26101765":"04A","IT26101300":"04A","IT26101752":"04A","IT26101263":"04A","IT26101305":"04A","IT26101276":"04A","IT26101685":"04A","IT26101397":"04A","IT26101450":"04B","IT26101267":"04B","IT26101753":"04B","IT26101418":"04B","IT26101745":"04B","IT26101694":"04B","IT26101755":"04B","IT26101442":"04B","IT26101817":"04B","IT26100122":"04B","IT26101776":"04B","IT26101451":"04B","IT26101575":"04B","IT26102182":"04B","IT26102196":"04B","IT26101288":"04B","IT26101385":"04B","IT26101760":"04B","IT26101304":"04B","IT26101723":"04B","IT26101633":"04B","IT26101458":"04B","IT26101290":"04B","IT26101375":"04B","IT26101492":"04B","IT26101477":"04B","IT26102178":"04B","IT26102188":"04B","IT26102232":"04B","IT26101423":"04C","IT26101729":"04C","IT26101387":"04C","IT26101289":"04C","IT26101926":"04C","IT26101298":"04C","IT26101730":"04C","IT26101309":"04C","IT26102101":"04C","IT26102190":"04C","IT26102197":"04C","IT26102212":"04C","IT26101965":"04C","IT26101875":"04D","IT26101785":"04D","IT26101327":"04D","IT26101483":"04D","IT26101281":"04D","IT26101366":"04D","IT26101747":"04D","IT26101532":"04D","IT26101708":"04D","IT26101749":"04D","IT26101759":"04D","IT26101764":"04D","IT26101758":"04D","IT26101310":"04D"};
+const AI_SESSION_TIMEOUT = 30 * 60 * 1000;
+setInterval(() => {
+    const now = Date.now();
+    for (const [jid, s] of aiConversations) {
+        if (now - s.lastActivity > AI_SESSION_TIMEOUT) aiConversations.delete(jid);
+    }
+}, 10 * 60 * 1000);
+
+/**
+ * Resolve a @lid JID to its real @s.whatsapp.net phone JID.
+ * WhatsApp now uses @lid JIDs in some regions — we map them on contacts sync.
+ * Falls back to replying directly to the @lid JID, which WhatsApp also accepts.
+ */
+async function resolveLID(jid) {
+    if (!jid) return jid;
+    if (!jid.endsWith('@lid')) return jid;
+
+    // 1. Check our LID→phone map (built from contacts.upsert)
+    if (lidToPhone.has(jid)) {
+        const phone = lidToPhone.get(jid);
+        console.log(`🔁 LID resolved: ${jid} → ${phone}`);
+        return phone;
+    }
+
+    // 2. Try jidNormalizedUser
+    try {
+        const normalized = jidNormalizedUser(jid);
+        if (normalized && !normalized.endsWith('@lid')) {
+            console.log(`🔁 LID normalized: ${jid} → ${normalized}`);
+            lidToPhone.set(jid, normalized); // cache it
+            return normalized;
+        }
+    } catch(_) {}
+
+    // 3. Reply directly to @lid — WhatsApp accepts it
+    console.warn(`⚠️  LID unresolved: ${jid} — replying to LID directly`);
+    return jid;
+}
+
+// Message deduplication: track recently processed message IDs
+// Map of msgId → expiry timestamp; swept every 30s (no per-message timers)
+const processedMsgIds = new Map();
+const DEDUP_TTL = 60000; // 60s
+setInterval(() => {
+    const now = Date.now();
+    for (const [id, exp] of processedMsgIds) {
+        if (now > exp) processedMsgIds.delete(id);
+    }
+}, 30000);
+
+// ─── TWO-LANE SEND SYSTEM ────────────────────────────────────────────────────
+//
+//  LANE A — Direct replies (priority):
+//    • Bypasses the broadcast queue entirely
+//    • Sends immediately with up to 3 retries and 1s backoff
+//    • Used for all user/admin replies
+//
+//  LANE B — Broadcast queue (background):
+//    • Processes bulk sends at safe rate (800ms/msg)
+//    • Never blocks Lane A
+//
+// This means your personal replies are ALWAYS instant, even during a broadcast.
+
+/**
+ * Lane A: direct send with retry. Used for all replies.
+ * Never queued — sends immediately.
+ */
+async function directSend(jid, content, retries = 4) {
+    if (!sock) {
+        console.error(`❌ directSend: sock is null — bot not connected`);
+        throw new Error('sock is null');
+    }
+    // Wait if session just reconnected (crypto handshake needs time)
+    const msSinceStable = Date.now() - sessionStableAt;
+    if (msSinceStable < 3000 && msSinceStable >= 0) {
+        await sleep(3000 - msSinceStable);
+    }
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            return await throttledSend(jid, content);
+        } catch(e) {
+            const isLast = attempt === retries;
+            if (isLast) {
+                console.error(`❌ directSend failed after ${retries} retries to ${jidNum(jid)}: ${e.message}`);
+                throw e;
+            }
+            // Exponential backoff: 1s, 2s, 4s, 8s
+            const backoff = 1000 * Math.pow(2, attempt);
+            console.warn(`⚠️  directSend attempt ${attempt + 1} failed: ${e.message} — retrying in ${backoff/1000}s`);
+            await sleep(backoff);
+        }
+    }
+}
+
+/**
+ * Lane B: broadcast queue. Low-priority bulk sends.
+ */
+const broadcastQueue = [];
+let broadcastRunning = false;
+
+function enqueueBroadcast(jid, content) {
+    return new Promise((resolve, reject) => {
+        broadcastQueue.push({ jid, content, resolve, reject, retries: 0 });
+        if (!broadcastRunning) runBroadcastQueue();
+    });
+}
+
+async function runBroadcastQueue() {
+    if (broadcastRunning) return;
+    broadcastRunning = true;
+    while (broadcastQueue.length > 0) {
+        const job = broadcastQueue.shift();
+        try {
+            const result = await sock.sendMessage(job.jid, job.content);
+            job.resolve(result);
+        } catch(e) {
+            if (job.retries < 3) {
+                job.retries++;
+                broadcastQueue.unshift(job);
+                // Exponential backoff: 5s, 10s, 20s between retries
+                await sleep(5000 * job.retries);
+            } else {
+                job.reject(e);
+            }
+        }
+        // 1200ms + jitter between broadcast sends — safe anti-ban rate
+        await sleep(1200 + Math.floor(Math.random() * 300));
+    }
+    broadcastRunning = false;
+}
+
+// ─── DATABASE SCHEMA ──────────────────────────────────────────────────────────
+let db = {
+    registrations: {},   // jid → "IT26XXXXXX"
+    students:      {},   // "IT26XXXXXX" → { ...data, whatsapp, registeredAt, wa_group_slot }
+    admins:        [],
+    banned:        [],
+    broadcasts:    [],
+    waGroups:      {},   // slot_key → { jid, inviteLink, name, createdAt }
+    projectGroups: {},   // project_group → { members: ["IT26XXXXXX", ...], addedBy, createdAt }
+    quizStats:     {},   // jid → { correct, wrong, streak, bestStreak, total, lastAt }
+    deadlines:     [],   // [{ id, title, dueAt(ISO), targetGroup, createdBy, createdAt, notified24h, notified2h }]
+    deadlineSubs:  {},   // jid → true  (opted in to personal deadline reminders, default true once registered)
+    moodLog:       {},   // jid → [{ mood, at }]  (last ~10 kept)
+    habits:        {},   // jid → { habitName: { streak, lastDoneDate } }
+};
+
+// ─── WEB SERVER ───────────────────────────────────────────────────────────────
+const app = express();
+
+app.get('/health', (_, res) =>
+    res.status(200).json({
+        status: botStatus,
+        ready: botReady,
+        registered: Object.keys(db.registrations).length,
+        groups: Object.keys(db.waGroups).length,
+    })
+);
+
+app.get('/', (_, res) => {
+    if (latestQR) {
+        qrcode.toDataURL(latestQR, (err, url) => {
+            if (err) return res.status(500).send('QR error');
+            res.send(`<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scan QR – SLIIT Bot</title>
+<style>
+body{font-family:sans-serif;display:flex;flex-direction:column;align-items:center;
+justify-content:center;min-height:100vh;margin:0;background:#f0f2f5;padding:20px;box-sizing:border-box;}
+h1{color:#128C7E;margin-bottom:4px;}
+img{border:4px solid #128C7E;border-radius:8px;max-width:300px;width:100%;}
+p{color:#555;font-size:14px;text-align:center;}
+.divider{margin:20px 0;color:#aaa;font-size:13px;}
+.pair-box{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.1);text-align:center;max-width:320px;width:100%;}
+input{padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px;width:100%;box-sizing:border-box;margin:8px 0;}
+button{background:#128C7E;color:#fff;border:none;padding:12px 24px;border-radius:8px;font-size:15px;cursor:pointer;width:100%;}
+button:hover{background:#0f7167;}
+#result{margin-top:12px;font-size:15px;font-weight:bold;}
+small{color:#888}
+</style></head><body>
+<h1>📱 SLIIT Bot Login</h1>
+<div class="pair-box">
+  <p><b>Option 1: Scan QR</b><br>WhatsApp → Linked Devices → Link a Device</p>
+  <img src="${url}" alt="QR Code">
+  <p><small>Auto-refresh in 30s</small></p>
+  <script>setTimeout(()=>location.reload(),30000)</script>
+
+  <div class="divider">── OR ──</div>
+
+  <p><b>Option 2: Pair with Phone Number</b><br>Enter the bot's WhatsApp number:</p>
+  <input id="phone" type="tel" placeholder="e.g. 94761297530" value="">
+  <button onclick="pair()">Get Pairing Code</button>
+  <div id="result"></div>
+</div>
+<p><small>Created by Poojana Kaveesh | IT26101524</small></p>
+<script>
+async function pair() {
+  const phone = document.getElementById('phone').value.replace(/[^0-9]/g,'');
+  const res = document.getElementById('result');
+  if (!phone || phone.length < 7) { res.textContent = '❌ Enter a valid number'; res.style.color='red'; return; }
+  res.textContent = '⏳ Requesting code...'; res.style.color='#555';
+  try {
+    const r = await fetch('/pair?phone=' + phone);
+    const d = await r.json();
+    if (d.code) {
+      res.innerHTML = '✅ Your pairing code:<br><span style="font-size:28px;letter-spacing:4px;color:#128C7E">' + d.code + '</span><br><small>WhatsApp → Linked Devices → Link with Phone Number</small>';
+    } else {
+      res.textContent = '❌ ' + (d.error || 'Failed'); res.style.color='red';
+    }
+  } catch(e) { res.textContent = '❌ Request failed'; res.style.color='red'; }
+}
+</script>
+</body></html>`);
+        });
+    } else {
+        const slotCount = Object.keys(db.waGroups || {}).length;
+        res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>SLIIT Bot</title>
+<meta http-equiv="refresh" content="8">
+<style>body{font-family:sans-serif;text-align:center;padding:60px;background:#f0f2f5;}
+h1{color:${botReady?'#128C7E':'#888'}}</style></head>
+<body><h1>${botReady ? '✅ Bot Online' : '⏳ Starting...'}</h1>
+<p>Status: <b>${botStatus}</b> | Registered: <b>${Object.keys(db.registrations).length}</b> | WA Group Slots: <b>${slotCount}</b></p>
+<p>Data: <b>${DATA_PATH}</b></p>
+<p><small>Created by Poojana Kaveesh | IT26101524 | 94772197530</small></p>
+</body></html>`);
+    }
+});
+
+// Pairing code endpoint — GET /pair?phone=94761297530
+app.get('/pair', async (req, res) => {
+    const phone = (req.query.phone || '').replace(/[^0-9]/g, '');
+    if (!phone) return res.json({ error: 'Missing phone number' });
+    if (!sock)  return res.json({ error: 'Bot not connected yet — wait for QR page to show, then try again' });
+    if (botStatus === 'ready') return res.json({ error: 'Already linked — bot is online' });
+    try {
+        const code = await sock.requestPairingCode(phone);
+        console.log(`🔑 Pairing code for ${phone}: ${code}`);
+        res.json({ code });
+    } catch(e) {
+        console.error('Pairing code error:', e.message);
+        res.json({ error: e.message });
+    }
+});
+
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🌐 HTTP on port ${PORT}`);
+    initData();
+});
+server.on('error', e => { console.error('💥 HTTP error:', e.message); process.exit(1); });
+
+// ─── INIT DATA ────────────────────────────────────────────────────────────────
+function initData() {
+    DATA_PATH = resolveDataPath();
+    AUTH_PATH = path.join(DATA_PATH, 'auth');
+    DB_PATH   = path.join(DATA_PATH, 'database.json');
+    try {
+        const credsFile = path.join(AUTH_PATH, 'creds.json');
+        const files = fs.readdirSync(AUTH_PATH);
+        if (files.length > 0 && !fs.existsSync(credsFile)) {
+            console.log('🧹 Partial auth — clearing');
+            fs.rmSync(AUTH_PATH, { recursive: true, force: true });
+        } else if (files.length > 0) {
+            console.log('🔑 Auth session found — resuming');
+        }
+    } catch(_) {}
+    fs.mkdirSync(AUTH_PATH, { recursive: true });
+    loadDB();
+    setTimeout(startBot, 1000);
+}
+
+function resolveDataPath() {
+    const candidates = [
+        process.env.DATA_PATH,
+        process.env.RAILWAY_VOLUME_MOUNT_PATH,
+        '/data', '/vol', '/mnt/data', '/app/data',
+    ].filter(Boolean);
+    for (const p of candidates) {
+        try {
+            fs.mkdirSync(p, { recursive: true });
+            const t = path.join(p, '.writetest');
+            fs.writeFileSync(t, '1'); fs.unlinkSync(t);
+            console.log(`💾 Data path: ${p}`);
+            return p;
+        } catch(_) { console.log(`⏭️  Not writable: ${p}`); }
+    }
+    console.warn('⚠️  Falling back to /tmp — data will NOT persist!');
+    fs.mkdirSync('/tmp/botdata', { recursive: true });
+    return '/tmp/botdata';
+}
+
+function loadDB() {
+    try {
+        if (fs.existsSync(DB_PATH)) {
+            const saved = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+            db = { ...db, ...saved };
+            if (!db.waGroups)      db.waGroups      = {};
+            if (!db.projectGroups) db.projectGroups = {};
+            if (!db.admins)        db.admins        = [];
+            if (!db.banned)        db.banned        = [];
+            if (!db.broadcasts)    db.broadcasts    = [];
+            if (!db.languages)     db.languages     = {};
+            if (!db.aiProvider)    db.aiProvider    = {};
+            if (!db.groupLinks)    db.groupLinks    = {};
+            if (!db.aiSessions)    db.aiSessions    = {};
+            if (!db.quizStats)     db.quizStats     = {};
+            if (!db.deadlines)     db.deadlines     = [];
+            if (!db.deadlineSubs)  db.deadlineSubs  = {};
+            if (!db.moodLog)       db.moodLog       = {};
+            if (!db.habits)        db.habits        = {};
+            console.log(`📦 DB loaded — ${Object.keys(db.registrations).length} registrations, ${Object.keys(db.waGroups).length} WA groups`);
+        }
+    } catch(e) { console.error('DB load error:', e.message); }
+}
+
+// Atomic write: write to temp file, then rename to avoid corruption
+function saveDB() {
+    try {
+        const tmp = DB_PATH + '.tmp';
+        fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
+        fs.renameSync(tmp, DB_PATH);
+    } catch(e) { console.error('DB save error:', e.message); }
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+const jidNum       = jid => (jid || '').replace(/@.*/, '').replace(/[^0-9]/g, '');
+const toJid        = num => `${num.replace(/[^0-9]/g, '')}@s.whatsapp.net`;
+const isSuperAdmin = jid => {
+    if (SUPER_ADMIN_LIDS.includes(jidNum(jid))) return true;
+    if (jidNum(jid) === jidNum(SUPER_ADMIN)) return true;
+    return false;
+};
 const isAdmin      = jid => isSuperAdmin(jid) || db.admins.some(a => jidNum(a) === jidNum(jid));
 const isBanned     = jid => db.banned.some(b => jidNum(b) === jidNum(jid));
 const nowISO       = () => new Date().toISOString();
@@ -563,6 +1036,9 @@ async function handleMessage(rawMsg) {
             msg.message?.listResponseMessage?.title || '';
 
         if (!body || !body.trim()) return;
+        const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const quotedText = quotedMsg?.conversation || quotedMsg?.extendedTextMessage?.text || '';
+        const isReplyToAI = quotedText.includes('Assistant') || quotedText.includes('Answer:') || quotedText.includes('සහායක') || quotedText.includes('Turn ');
 
         const ts = Number(msg.messageTimestamp) * 1000;
         if (Date.now() - ts > 600000) return;  // skip messages older than 10 min (covers Railway deploy time)
@@ -585,6 +1061,9 @@ async function handleMessage(rawMsg) {
 }
 
 async function processMessage(jid, msg, body) {
+        const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const quotedText = quotedMsg?.conversation || quotedMsg?.extendedTextMessage?.text || '';
+        const isReplyToAI = quotedText.includes('Answer:') || quotedText.includes('Turn') || quotedText.includes('Assistant') || quotedText.includes('සහායක');
     try {
         const sid = jid;
         // reply — Lane A (direct, instant, retries 3x)
@@ -598,11 +1077,6 @@ async function processMessage(jid, msg, body) {
             }
         };
 
-        // Detect reply to AI message for conversation continuation
-        const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-        const quotedText = quotedMsg?.conversation || quotedMsg?.extendedTextMessage?.text || '';
-        const isReplyToAI = quotedText.includes('Assistant') && (quotedText.includes('Answer:') || quotedText.includes('Turn') || quotedText.includes('💡'));
-
         const parts = body.trim().split(/\s+/);
         const cmd   = parts[0].replace(/^\//, '').toUpperCase();
         const arg1  = parts[1] || '';
@@ -613,7 +1087,888 @@ async function processMessage(jid, msg, body) {
 
         if (isBanned(sid)) { console.log(`🚫 Banned user: ${jidNum(sid)}`); return; }
 
-        // ── ENDCHAT ───────────────────────────────────────────────────────────
+        // ── QUIZ ANSWER HANDLER — captures the reply to an active quiz ───────────
+        if (quizSessions.has(sid) && !KNOWN_COMMANDS.has(cmd)) {
+            const qs = quizSessions.get(sid);
+            const userAns = body.trim();
+            const lang = getLang(sid);
+            quizSessions.delete(sid);
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *Checking your answer...*`));
+            try {
+                const checkPrompt = `Quiz Question: "${qs.question}"
+Correct Answer: "${qs.answer}"
+Student's Answer: "${userAns}"
+Category: ${qs.category}
+
+Evaluate if the student's answer is correct (accept reasonable variations).
+Reply in this exact format:
+RESULT: CORRECT or WRONG
+EXPLANATION: [2-3 sentences explaining why the answer is correct/wrong, what the right answer is, and a helpful tip]`;
+                const result = await prov.call(checkPrompt, 'You are a strict but encouraging teacher. Evaluate student answers fairly.', [], 350);
+                const isCorrect = result.toUpperCase().includes('RESULT: CORRECT');
+                const explanation = result.replace(/RESULT:[^\n]*/i, '').replace(/EXPLANATION:/i, '').trim();
+                const emoji = isCorrect ? '✅' : '❌';
+
+                // Update quiz stats / streak for leaderboard
+                if (!db.quizStats[sid]) db.quizStats[sid] = { correct: 0, wrong: 0, streak: 0, bestStreak: 0, total: 0, lastAt: 0 };
+                const stats = db.quizStats[sid];
+                stats.total++;
+                stats.lastAt = Date.now();
+                if (isCorrect) {
+                    stats.correct++;
+                    stats.streak++;
+                    if (stats.streak > stats.bestStreak) stats.bestStreak = stats.streak;
+                } else {
+                    stats.wrong++;
+                    stats.streak = 0;
+                }
+                saveDB();
+                const feedback = isCorrect
+                    ? (lang==='si' ? '🎉 *නිවැරදියි!*' : '🎉 *Correct! Well done!*')
+                    : (lang==='si' ? `❌ *වැරදියි.*\n\n✅ *නිවැරදි පිළිතුර:* ${qs.answer}` : `❌ *Not quite right.*\n\n✅ *Correct answer:* ${qs.answer}`);
+                const streakLine = isCorrect && stats.streak > 1
+                    ? `🔥 *Streak: ${stats.streak} in a row!*\n\n`
+                    : '';
+                // ── Scored quiz SET continuation ─────────────────────────────────
+                if (qs.setInfo) {
+                    const set = qs.setInfo;
+                    if (isCorrect) set.score++;
+                    const qNum = set.total - set.remaining;
+                    const resultLines = [
+                        `${emoji} *Question ${qNum}/${set.total}*`,
+                        ``,
+                        `❓ ${qs.question}`,
+                        `💬 Your answer: ${userAns}`,
+                        ``,
+                        feedback,
+                        ``,
+                        `📖 ${explanation}`,
+                    ];
+                    if (set.remaining > 0) {
+                        try {
+                            const nextQ = await generateQuizQuestion(prov, set.category);
+                            quizSessions.set(sid, {
+                                question: nextQ.question, answer: nextQ.answer, category: nextQ.category, asked: Date.now(),
+                                setInfo: { category: set.category, remaining: set.remaining - 1, score: set.score, total: set.total }
+                            });
+                            const diffEmoji = nextQ.difficulty.toLowerCase().includes('easy') ? '🟢' : nextQ.difficulty.toLowerCase().includes('hard') ? '🔴' : '🟡';
+                            resultLines.push(
+                                ``,
+                                `━━━━━━━━━━━━━━━━━━━━`,
+                                `📋 *Question ${qNum+1}/${set.total}*  ${diffEmoji} ${nextQ.difficulty}`,
+                                ``,
+                                `❓ *${nextQ.question}*`,
+                                ``,
+                                `_Reply with your answer!_`,
+                            );
+                        } catch(e2) {
+                            console.error('Quiz set next-question error:', e2.message);
+                            resultLines.push(``, `⚠️ Could not generate the next question. Send *QUIZ* to try again.`);
+                            quizSessions.delete(sid);
+                        }
+                    } else {
+                        const pct = Math.round((set.score / set.total) * 100);
+                        const grade = pct >= 80 ? '🏆 Excellent!' : pct >= 60 ? '👍 Good job!' : pct >= 40 ? '💪 Keep practicing!' : '📚 More practice needed!';
+                        resultLines.push(
+                            ``,
+                            `╔══════════════════════════╗`,
+                            `  🎉 *Quiz Set Complete!*`,
+                            `╚══════════════════════════╝`,
+                            ``,
+                            `📊 *Final Score: ${set.score}/${set.total} (${pct}%)*`,
+                            grade,
+                            ``,
+                            `_Send *LEADERBOARD* to see rankings, or *QUIZ ${set.category} ${set.total}* to try again!_`,
+                        );
+                    }
+                    await reply(withFooter(resultLines.join('\n')));
+                    return;
+                }
+
+                await reply(withFooter([
+                    `${emoji} *Quiz Result*`,
+                    ``,
+                    `❓ *Question:* ${qs.question}`,
+                    `💬 *Your answer:* ${userAns}`,
+                    ``,
+                    feedback,
+                    ``,
+                    streakLine + `📖 *Explanation:*`,
+                    explanation,
+                    ``,
+                    `📊 *Score:* ${stats.correct}/${stats.total} correct  |  *LEADERBOARD* to see rankings`,
+                    `_Send *QUIZ* for another question!_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Quiz check error:', e.message);
+                await reply(withFooter(`❌ Could not check your answer. Try sending *QUIZ* for a new question.`));
+            }
+            return;
+        }
+
+        // ── LEADERBOARD — Top quiz performers ────────────────────────────────────
+        if (cmd === 'LEADERBOARD' || cmd === 'LB' || cmd === 'TOP') {
+            const lang = getLang(sid);
+            const entries = Object.entries(db.quizStats)
+                .filter(([,s]) => s.total > 0)
+                .map(([jid, s]) => {
+                    const reg = db.registrations[jid];
+                    const name = reg && db.students[reg] ? db.students[reg].name : jidNum(jid);
+                    return { name, reg: reg || '—', correct: s.correct, total: s.total, streak: s.bestStreak };
+                })
+                .sort((a,b) => b.correct - a.correct || b.streak - a.streak)
+                .slice(0, 10);
+
+            if (entries.length === 0) {
+                await reply(withFooter(lang==='si'
+                    ? '📊 *තවම QUIZ score නැත.*\n\n*QUIZ* යවා පුහුණු වෙන්න!'
+                    : '📊 *No quiz scores yet!*\n\nSend *QUIZ* to start practicing and climb the leaderboard.'));
+                return;
+            }
+            const medals = ['🥇','🥈','🥉'];
+            const lines = [
+                `╔══════════════════════════╗`,
+                `  🏆 *Quiz Leaderboard*`,
+                `╚══════════════════════════╝`,
+                ``,
+            ];
+            entries.forEach((e, i) => {
+                const rank = medals[i] || `${i+1}.`;
+                const acc = Math.round((e.correct / e.total) * 100);
+                lines.push(`${rank} *${e.name}*  —  ${e.correct}✅ / ${e.total} (${acc}%)  🔥${e.streak}`);
+            });
+            lines.push('', '_Send *QUIZ* to climb the ranks!_', '_Send *MYSTATS* for your personal stats._');
+            await reply(withFooter(lines.join('\n')));
+            return;
+        }
+
+        // ── MYSTATS — Personal quiz performance ──────────────────────────────────
+        if (cmd === 'MYSTATS' || cmd === 'STATS') {
+            const lang = getLang(sid);
+            const s = db.quizStats[sid];
+            if (!s || s.total === 0) {
+                await reply(withFooter(lang==='si'
+                    ? '📊 *තවම QUIZ history නැත.*\n\n*QUIZ* යවා පුහුණු වෙන්න!'
+                    : '📊 *No quiz history yet!*\n\nSend *QUIZ* to start practicing.'));
+                return;
+            }
+            const acc = Math.round((s.correct / s.total) * 100);
+            const bar = '█'.repeat(Math.round(acc/10)) + '░'.repeat(10 - Math.round(acc/10));
+            await reply(withFooter([
+                `╔══════════════════════════╗`,
+                `  📊 *Your Quiz Stats*`,
+                `╚══════════════════════════╝`,
+                ``,
+                `✅ Correct:    ${s.correct}`,
+                `❌ Wrong:      ${s.wrong}`,
+                `📈 Total:      ${s.total}`,
+                `🎯 Accuracy:   ${acc}%`,
+                `${bar}`,
+                `🔥 Best Streak: ${s.bestStreak}`,
+                ``,
+                `_Send *LEADERBOARD* to see how you rank!_`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── SUMMARIZE — AI summary of pasted notes/text ──────────────────────────
+        if (cmd === 'SUMMARIZE' || cmd === 'SUMMARY' || cmd === 'TLDR') {
+            const lang = getLang(sid);
+            const text = body.replace(/^(SUMMARIZE|SUMMARY|TLDR)\s*/i, '').trim();
+            if (!text || text.length < 30) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Summarize කරන්න text එකක් paste කරන්න (අවම 30 characters).*\n\nඋදා: *SUMMARIZE <your lecture notes here>*'
+                    : '❌ *Paste some text to summarize (at least 30 characters).*\n\nExample: *SUMMARIZE <paste your lecture notes here>*'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Summarizing...*`));
+            try {
+                const prompt = `Summarize the following text for a university student studying for exams. Use short bullet points covering only the key facts, concepts, and definitions. Keep it concise.
+
+TEXT:
+${text.slice(0, 6000)}`;
+                const summary = await prov.call(prompt, 'You are a helpful study assistant that creates clear, concise exam-focused summaries.', [], 700);
+                await reply(withFooter([
+                    `📝 *Summary*`,
+                    ``,
+                    summary.trim(),
+                    ``,
+                    `_Paste more text with *SUMMARIZE* anytime!_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Summarize error:', e.message);
+                await reply(withFooter('❌ Could not summarize right now. Try again with a shorter text.'));
+            }
+            return;
+        }
+
+        // ── TRANSLATE — Sinhala ↔ English ─────────────────────────────────────────
+        if (cmd === 'TRANSLATE' || cmd === 'TR') {
+            const lang = getLang(sid);
+            const text = body.replace(/^(TRANSLATE|TR)\s*/i, '').trim();
+            if (!text) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Translate කරන්න text එකක් දෙන්න.*\n\nඋදා: *TRANSLATE Good morning, how are you?*'
+                    : '❌ *Give me text to translate.*\n\nExample: *TRANSLATE ඔයාට කොහොමද?*\nWorks both ways — Sinhala ↔ English!'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Translating...*`));
+            try {
+                const prompt = `Detect whether the following text is in Sinhala or English, then translate it to the OTHER language. Reply with ONLY the translation, nothing else — no labels, no explanations.
+
+TEXT: ${text}`;
+                const translated = await prov.call(prompt, 'You are a precise Sinhala-English translator. Output only the translation.', [], 500);
+                await reply(withFooter([
+                    `🌐 *Translation*`,
+                    ``,
+                    `📥 ${text}`,
+                    ``,
+                    `📤 ${translated.trim()}`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Translate error:', e.message);
+                await reply(withFooter('❌ Could not translate right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── EXPLAIN — Simple explanations of tricky topics ───────────────────────
+        if (cmd === 'EXPLAIN' || cmd === 'ELI5') {
+            const lang = getLang(sid);
+            const topic = body.replace(/^(EXPLAIN|ELI5)\s*/i, '').trim();
+            if (!topic) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Explain කරන්න මාතෘකාවක් දෙන්න.*\n\nඋදා: *EXPLAIN recursion*'
+                    : '❌ *Give me a topic to explain.*\n\nExample: *EXPLAIN recursion*\nExample: *EXPLAIN how does the internet work*'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Explaining...*`));
+            try {
+                const prompt = `Explain "${topic}" in simple, easy-to-understand terms for a first-year university IT student. Use a short analogy if helpful, then a brief technical summary. Keep it under 200 words.`;
+                const explanation = await prov.call(prompt, 'You are a friendly tutor who explains technical concepts simply and clearly.', [], 500);
+                await reply(withFooter([
+                    `💡 *Explaining: ${topic}*`,
+                    ``,
+                    explanation.trim(),
+                    ``,
+                    `_Want more detail? Try *ASK ${topic} in depth*_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Explain error:', e.message);
+                await reply(withFooter('❌ Could not generate an explanation right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── FLASHCARDS — AI generated study flashcards ───────────────────────────
+        if (cmd === 'FLASHCARDS' || cmd === 'CARDS' || cmd === 'FC') {
+            const lang = getLang(sid);
+            const rest = body.replace(/^(FLASHCARDS|CARDS|FC)\s*/i, '').trim();
+            if (!rest) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *මාතෘකාවක් දෙන්න.*\n\nඋදා: *FLASHCARDS OOP concepts*\nඋදා: *FLASHCARDS networking 8*'
+                    : '❌ *Give me a topic.*\n\nExample: *FLASHCARDS OOP concepts*\nExample: *FLASHCARDS networking 8* (custom count)'));
+                return;
+            }
+            const m = rest.match(/^(.*?)\s+(\d{1,2})$/);
+            const topic = (m ? m[1] : rest).trim();
+            let count = m ? parseInt(m[2], 10) : 5;
+            count = Math.min(Math.max(count, 3), 10);
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Creating ${count} flashcards on "${topic}"...*`));
+            try {
+                const prompt = `Create ${count} flashcards for studying "${topic}" for a university IT student.
+Reply in EXACTLY this format, one per line, nothing else:
+Q1: [question/term] | A1: [short answer/definition]
+Q2: [question/term] | A2: [short answer/definition]
+... up to Q${count}/A${count}`;
+                const result = await prov.call(prompt, 'You are a study tool that creates concise flashcards.', [], Math.min(150 * count, 1400));
+                const lines = result.split('\n').map(l => l.trim()).filter(l => /^Q\d+:/i.test(l));
+                if (lines.length === 0) throw new Error('Bad format');
+                const cards = lines.map((l, i) => {
+                    const [qPart, aPart] = l.split(/\|\s*A\d+:/i);
+                    const q = qPart.replace(/^Q\d+:\s*/i, '').trim();
+                    const a = (aPart || '').trim();
+                    return `*${i+1}. ${q}*\n   ➤ ${a}`;
+                });
+                await reply(withFooter([
+                    `🗂️ *Flashcards: ${topic}*`,
+                    ``,
+                    ...cards,
+                    ``,
+                    `_More: *FLASHCARDS <topic>* or *FLASHCARDS <topic> <count>*_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Flashcards error:', e.message);
+                await reply(withFooter('❌ Could not generate flashcards right now. Try a different topic.'));
+            }
+            return;
+        }
+
+        // ── DEFINE — Quick definitions ───────────────────────────────────────────
+        if (cmd === 'DEFINE' || cmd === 'DEF' || cmd === 'WHATIS') {
+            const lang = getLang(sid);
+            const term = body.replace(/^(DEFINE|DEF|WHATIS)\s*/i, '').trim();
+            if (!term) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Term එකක් දෙන්න.*\n\nඋදා: *DEFINE polymorphism*'
+                    : '❌ *Give me a term.*\n\nExample: *DEFINE polymorphism*'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Looking up "${term}"...*`));
+            try {
+                const prompt = `Give a short, clear definition of "${term}" for a university IT student. 1-2 sentences max, then ONE short example if relevant.`;
+                const def = await prov.call(prompt, 'You are a concise technical dictionary.', [], 180);
+                await reply(withFooter([
+                    `📖 *${term}*`,
+                    ``,
+                    def.trim(),
+                ].join('\n')));
+            } catch(e) {
+                console.error('Define error:', e.message);
+                await reply(withFooter('❌ Could not find a definition right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── CODE — Explain / debug pasted code ───────────────────────────────────
+        if (cmd === 'CODE' || cmd === 'DEBUG') {
+            const lang = getLang(sid);
+            const code = body.replace(/^(CODE|DEBUG)\s*/i, '').trim();
+            if (!code || code.length < 5) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Code එකක් paste කරන්න.*\n\nඋදා: *CODE for(int i=0;i<10;i++) print(i)*\n\n_Error එකක් තියෙනවානම් copy-paste කරන්න!_'
+                    : '❌ *Paste your code.*\n\nExample: *CODE for(int i=0;i<10;i++) print(i)*\n\n_If you have an error, paste the error message too!_'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Analyzing code...*`));
+            try {
+                const prompt = `A student shared this code (possibly with an error). Explain what it does in simple terms, point out any bugs or issues, and suggest a fix if needed. Be concise and use code snippets where helpful.
+
+CODE:
+${code.slice(0, 4000)}`;
+                const explanation = await prov.call(prompt, 'You are a helpful programming tutor who explains code clearly and finds bugs.', [], 900);
+                await reply(withFooter([
+                    `💻 *Code Analysis*`,
+                    ``,
+                    explanation.trim(),
+                ].join('\n')));
+            } catch(e) {
+                console.error('Code error:', e.message);
+                await reply(withFooter('❌ Could not analyze the code right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── GRAMMAR — Check & correct English sentences ──────────────────────────
+        if (cmd === 'GRAMMAR' || cmd === 'CHECK' || cmd === 'FIX') {
+            const lang = getLang(sid);
+            const text = body.replace(/^(GRAMMAR|CHECK|FIX)\s*/i, '').trim();
+            if (!text) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Check කරන්න sentence එකක් දෙන්න.*\n\nඋදා: *GRAMMAR I has went to school yesterday*'
+                    : '❌ *Give me a sentence to check.*\n\nExample: *GRAMMAR I has went to school yesterday*'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Checking grammar...*`));
+            try {
+                const prompt = `Check this English text for grammar, spelling, and punctuation errors. Reply in EXACTLY this format:
+CORRECTED: [the corrected version]
+NOTES: [1-2 short bullet points explaining the main mistakes and fixes, or "No errors found!" if perfect]
+
+TEXT: ${text}`;
+                const result = await prov.call(prompt, 'You are an English grammar tutor. Be encouraging and clear.', [], 400);
+                const corrMatch = result.match(/CORRECTED:\s*([\s\S]*?)(?:\nNOTES:|$)/i);
+                const notesMatch = result.match(/NOTES:\s*([\s\S]*)/i);
+                const corrected = (corrMatch?.[1] || result).trim();
+                const notes = (notesMatch?.[1] || '').trim();
+                await reply(withFooter([
+                    `✏️ *Grammar Check*`,
+                    ``,
+                    `📥 *Original:* ${text}`,
+                    ``,
+                    `✅ *Corrected:* ${corrected}`,
+                    notes ? `\n📝 *Notes:*\n${notes}` : '',
+                ].filter(l=>l!=='').join('\n')));
+            } catch(e) {
+                console.error('Grammar error:', e.message);
+                await reply(withFooter('❌ Could not check grammar right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── FACT — Random tech/study fact (instant, no AI needed) ────────────────
+        if (cmd === 'FACT' || cmd === 'TECHFACT') {
+            const lang = getLang(sid);
+            const facts = [
+                "The first computer 'bug' was an actual moth found stuck in the Harvard Mark II in 1947.",
+                "Java was originally called 'Oak', named after a tree outside its creator's office.",
+                "The first programmer in history was Ada Lovelace, who wrote algorithms for Charles Babbage's Analytical Engine in the 1840s.",
+                "Python is named after 'Monty Python's Flying Circus', not the snake.",
+                "The QWERTY keyboard layout was designed to slow typists down to prevent typewriter jams.",
+                "The first 1GB hard drive (1980) weighed over 500 pounds and cost $40,000.",
+                "'Spam' email got its name from a Monty Python sketch about canned meat.",
+                "The @ symbol was used in emails because it was one of the few symbols on keyboards not used in names.",
+                "Git was created by Linus Torvalds in just 10 days to manage Linux kernel development.",
+                "The term 'debugging' predates computers — Thomas Edison used it for electrical issues in 1878.",
+                "More than 90% of the world's currency exists only as digital data, not physical cash.",
+                "The first computer mouse (1964) was made of wood.",
+                "HTTP 404 errors are named after room 404 at CERN where the first web servers were located (a popular myth, but a fun one!).",
+                "A single Google search uses about the same energy as boiling a small amount of water — but Google handles billions per day.",
+                "The first domain name ever registered was symbolics.com in 1985.",
+                "Stack Overflow gets its name from the programming error that occurs when a program's call stack runs out of memory.",
+                "SLIIT students: studying in 25-min focused blocks (Pomodoro) can boost retention — try *POMODORO*!",
+                "The IELTS exam was first administered in 1989 and is now taken by over 3 million people per year.",
+            ];
+            const fact = facts[Math.floor(Math.random() * facts.length)];
+            await reply(withFooter([
+                `💡 *Did You Know?*`,
+                ``,
+                fact,
+                ``,
+                `_Send *FACT* for another one!_`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── POMODORO — Study timer with break reminders ──────────────────────────
+        if (cmd === 'POMODORO' || cmd === 'TIMER' || cmd === 'FOCUS') {
+            const lang = getLang(sid);
+            if ((arg1||'').toUpperCase() === 'STOP') {
+                const t = pomodoroTimers.get(sid);
+                if (t) {
+                    clearTimeout(t.workTimeout);
+                    clearTimeout(t.breakTimeout);
+                    pomodoroTimers.delete(sid);
+                    await reply(withFooter(lang==='si' ? '⏹️ *Pomodoro timer නවත්වා ඇත.*' : '⏹️ *Pomodoro timer stopped.*'));
+                } else {
+                    await reply(withFooter(lang==='si' ? 'ℹ️ *Active timer එකක් නැත.*' : 'ℹ️ *No active timer.*'));
+                }
+                return;
+            }
+            let minutes = parseInt(arg1, 10);
+            if (!minutes || minutes < 5 || minutes > 120) minutes = 25;
+            const existing = pomodoroTimers.get(sid);
+            if (existing) { clearTimeout(existing.workTimeout); clearTimeout(existing.breakTimeout); }
+            const workTimeout = setTimeout(async () => {
+                try {
+                    await directSend(sid, { text: withFooter([
+                        `⏰ *Time's up!*`,
+                        ``,
+                        `You focused for *${minutes} minutes*. Great work! 🎉`,
+                        ``,
+                        `☕ Take a *5 minute break* — stretch, hydrate, look away from the screen.`,
+                        ``,
+                        `_Send *POMODORO* again when you're ready for the next session!_`,
+                    ].join('\n')) });
+                } catch(e) { console.error('Pomodoro notify error:', e.message); }
+                pomodoroTimers.delete(sid);
+            }, minutes * 60 * 1000);
+            pomodoroTimers.set(sid, { workTimeout, breakTimeout: null });
+            await reply(withFooter([
+                `🍅 *Pomodoro Started!*`,
+                ``,
+                `⏱️ Focus session: *${minutes} minutes*`,
+                `📵 Put your phone away and focus on your studies.`,
+                ``,
+                `I'll message you when time's up!`,
+                `_Send *POMODORO STOP* to cancel._`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── HUMANIZE — Improve AI/robotic-sounding text ──────────────────────────
+        if (cmd === 'HUMANIZE' || cmd === 'REWRITE') {
+            const lang = getLang(sid);
+            const text = body.replace(/^(HUMANIZE|REWRITE)\s*/i, '').trim();
+            if (!text || text.length < 15) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Rewrite කරන්න text එකක් paste කරන්න (අවම 15 characters).*\n\nඋදා: *HUMANIZE <your paragraph here>*'
+                    : '❌ *Paste some text to improve (at least 15 characters).*\n\nExample: *HUMANIZE <paste your paragraph here>*\n\n_Great for making AI-drafted or stiff writing sound more natural in your own voice — always review before submitting!_'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Rewriting...*`));
+            try {
+                const prompt = `Rewrite the following text so it sounds natural, warm, and human — like a student wrote it in their own voice. Vary sentence length and structure, remove robotic or repetitive AI phrasing, and keep the original meaning and key facts intact. Reply with ONLY the rewritten text, nothing else.
+
+TEXT:
+${text.slice(0, 4000)}`;
+                const rewritten = await prov.call(prompt, 'You are a skilled writing editor who makes text sound natural and human while preserving meaning.', [], 900);
+                await reply(withFooter([
+                    `✨ *Rewritten Version*`,
+                    ``,
+                    rewritten.trim(),
+                    ``,
+                    `_⚠️ Always review and personalize before submitting — make sure it still reflects your own understanding._`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Humanize error:', e.message);
+                await reply(withFooter('❌ Could not rewrite the text right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── EMAIL — Draft a professional email ───────────────────────────────────
+        if (cmd === 'EMAIL') {
+            const lang = getLang(sid);
+            const desc = body.replace(/^EMAIL\s*/i, '').trim();
+            if (!desc) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Email එක ගැන විස්තර දෙන්න.*\n\nඋදා: *EMAIL ask lecturer for assignment deadline extension due to illness*'
+                    : '❌ *Describe the email you need.*\n\nExample: *EMAIL ask my lecturer for a deadline extension due to illness*\nExample: *EMAIL request a reference letter from my supervisor*'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Drafting email...*`));
+            try {
+                const prompt = `Write a polite, professional email for a university student based on this request: "${desc}"
+
+Reply in EXACTLY this format:
+SUBJECT: [short subject line]
+BODY: [the full email body, with greeting and polite closing. Use "[Your Name]" as placeholder for the student's name.]`;
+                const result = await prov.call(prompt, 'You are a professional writing assistant helping students communicate respectfully with university staff.', [], 700);
+                const subjMatch = result.match(/SUBJECT:\s*(.+)/i);
+                const bodyMatch = result.match(/BODY:\s*([\s\S]*)/i);
+                const subject = (subjMatch?.[1] || 'Email').trim();
+                const emailBody = (bodyMatch?.[1] || result).trim();
+                await reply(withFooter([
+                    `📧 *Email Draft*`,
+                    ``,
+                    `*Subject:* ${subject}`,
+                    ``,
+                    emailBody,
+                    ``,
+                    `_Replace [Your Name] with your name before sending!_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Email error:', e.message);
+                await reply(withFooter('❌ Could not draft the email right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── CITE — Generate a reference citation ─────────────────────────────────
+        if (cmd === 'CITE' || cmd === 'CITATION') {
+            const lang = getLang(sid);
+            const rest = body.replace(/^(CITE|CITATION)\s*/i, '').trim();
+            if (!rest) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Source details දෙන්න.*\n\nඋදා: *CITE APA: Smith J, Effective Java, 2020, Pearson*\n\n_Default: APA. IEEE/MLA ද support කරයි._'
+                    : '❌ *Give me the source details.*\n\nExample: *CITE APA Smith J, Effective Java, 2020, Pearson*\nExample: *CITE IEEE: a 2021 article on neural networks by Lee K, IEEE Trans, vol 5*\n\n_Default style: APA. Also supports IEEE/MLA — just mention the style._'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Generating citation...*`));
+            try {
+                const prompt = `Generate a properly formatted reference list citation based on this source information: "${rest}"
+
+If a citation style (APA, IEEE, MLA, Harvard) is mentioned, use it. Otherwise default to APA 7th edition. If some details are missing, use reasonable placeholders like [Year] or [Publisher]. Reply with ONLY the citation, nothing else.`;
+                const citation = await prov.call(prompt, 'You are a precise academic citation generator.', [], 250);
+                await reply(withFooter([
+                    `📚 *Citation*`,
+                    ``,
+                    citation.trim(),
+                    ``,
+                    `_Double-check against your module's required style guide._`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Cite error:', e.message);
+                await reply(withFooter('❌ Could not generate the citation right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── STUDYPLAN — AI generated study schedule ──────────────────────────────
+        if (cmd === 'STUDYPLAN' || cmd === 'PLAN') {
+            const lang = getLang(sid);
+            const rest = body.replace(/^(STUDYPLAN|PLAN)\s*/i, '').trim();
+            if (!rest) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Subjects/exam details දෙන්න.*\n\nඋදා: *STUDYPLAN Java, DB, Networking exams in 5 days, 2 hours/day*'
+                    : '❌ *Give me your subjects and timeframe.*\n\nExample: *STUDYPLAN Java, Database, Networking exams in 5 days, 2 hours per day*\nExample: *STUDYPLAN IELTS in 1 week*'));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Building your study plan...*`));
+            try {
+                const prompt = `Create a practical day-by-day study plan for a university student based on: "${rest}"
+
+Keep it realistic and balanced (include short breaks). Format as a clear day-by-day list with bullet points for tasks. Keep it concise — focus on actionable topics, not generic advice.`;
+                const plan = await prov.call(prompt, 'You are a supportive academic study planner. Be practical and realistic, not overwhelming.', [], 900);
+                await reply(withFooter([
+                    `🗓️ *Your Study Plan*`,
+                    ``,
+                    plan.trim(),
+                    ``,
+                    `_Tip: Use *POMODORO* during each session to stay focused!_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Studyplan error:', e.message);
+                await reply(withFooter('❌ Could not generate a study plan right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── INTERVIEW — Mock interview practice questions ────────────────────────
+        if (cmd === 'INTERVIEW' || cmd === 'MOCKINTERVIEW') {
+            const lang = getLang(sid);
+            const role = body.replace(/^(INTERVIEW|MOCKINTERVIEW)\s*/i, '').trim() || 'software engineering internship';
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Preparing interview questions for "${role}"...*`));
+            try {
+                const prompt = `Generate 5 realistic interview questions for a university student applying for: "${role}"
+
+Mix technical and behavioral questions appropriate for an entry-level/intern position. Reply as a numbered list of just the questions, nothing else.`;
+                const questions = await prov.call(prompt, 'You are an experienced technical interviewer creating practice questions for students.', [], 500);
+                await reply(withFooter([
+                    `🎤 *Mock Interview: ${role}*`,
+                    ``,
+                    questions.trim(),
+                    ``,
+                    `_Try answering one, then *ASK* me to review your answer!_`,
+                ].join('\n')));
+            } catch(e) {
+                console.error('Interview error:', e.message);
+                await reply(withFooter('❌ Could not generate interview questions right now. Try again.'));
+            }
+            return;
+        }
+
+        // ── DEADLINES — view upcoming assignment/exam deadlines ──────────────────
+        if (cmd === 'DEADLINES' || cmd === 'DEADLINE' || cmd === 'MYDEADLINES') {
+            const lang = getLang(sid);
+            const now = Date.now();
+            const upcoming = db.deadlines
+                .filter(d => new Date(d.dueAt).getTime() > now)
+                .sort((a,b) => new Date(a.dueAt) - new Date(b.dueAt));
+            if (upcoming.length === 0) {
+                await reply(withFooter(lang==='si'
+                    ? '✅ *දැනට deadline කිසිවක් නැත!*\n\nAdmin විසින් එකතු කළ විට මෙහි පෙන්වයි.'
+                    : '✅ *No upcoming deadlines right now!*\n\nThey\'ll show up here once an admin adds one.'));
+                return;
+            }
+            const lines = [
+                `╔══════════════════════════╗`,
+                `  📌 *Upcoming Deadlines*`,
+                `╚══════════════════════════╝`,
+                ``,
+            ];
+            upcoming.slice(0, 10).forEach(d => {
+                const due = new Date(d.dueAt);
+                const hoursLeft = Math.round((due.getTime() - now) / 3600000);
+                const daysLeft = Math.floor(hoursLeft / 24);
+                const timeLeft = daysLeft >= 1
+                    ? `${daysLeft} day${daysLeft!==1?'s':''} left`
+                    : `${hoursLeft}h left`;
+                const urgency = hoursLeft <= 24 ? '🔴' : hoursLeft <= 72 ? '🟡' : '🟢';
+                lines.push(`${urgency} *${d.title}*`, `   📅 ${due.toDateString()}  •  ⏳ ${timeLeft}`, ``);
+            });
+            lines.push(`_Reminders are sent automatically 24h and 2h before each deadline._`);
+            if (!db.deadlineSubs[sid] && db.deadlineSubs[sid] !== undefined) {
+                lines.push(`_You've muted reminders. Send *REMINDME* to re-enable._`);
+            } else {
+                lines.push(`_Send *UNREMIND* to mute automatic reminders._`);
+            }
+            await reply(withFooter(lines.join('\n')));
+            return;
+        }
+
+        // ── REMINDME / UNREMIND — toggle personal deadline reminders ─────────────
+        if (cmd === 'REMINDME' || cmd === 'UNREMIND') {
+            const lang = getLang(sid);
+            db.deadlineSubs[sid] = (cmd === 'REMINDME');
+            saveDB();
+            await reply(withFooter(cmd === 'REMINDME'
+                ? (lang==='si' ? '🔔 *Deadline reminders සක්‍රීයයි!*' : '🔔 *Deadline reminders enabled!* You\'ll get a heads-up 24h and 2h before each one.')
+                : (lang==='si' ? '🔕 *Deadline reminders නවත්වා ඇත.*' : '🔕 *Deadline reminders muted.* Send *REMINDME* to turn them back on.')));
+            return;
+        }
+
+        // ── MOOD / CHECKIN — quick wellbeing check-in ─────────────────────────────
+        if (cmd === 'MOOD' || cmd === 'CHECKIN') {
+            const lang = getLang(sid);
+            const moodWord = (arg1||'').toLowerCase();
+            const validMoods = { great:'😄', good:'🙂', okay:'😐', stressed:'😰', tired:'😴', sad:'😢' };
+            if (!validMoods[moodWord]) {
+                await reply(withFooter([
+                    lang==='si' ? '💭 *ඔයාට අද හැඟෙන්නේ කොහොමද?*' : '💭 *How are you feeling today?*',
+                    ``,
+                    `*MOOD great*     😄`,
+                    `*MOOD good*      🙂`,
+                    `*MOOD okay*      😐`,
+                    `*MOOD stressed*  😰`,
+                    `*MOOD tired*     😴`,
+                    `*MOOD sad*       😢`,
+                ].join('\n')));
+                return;
+            }
+            if (!db.moodLog[sid]) db.moodLog[sid] = [];
+            db.moodLog[sid].push({ mood: moodWord, at: Date.now() });
+            if (db.moodLog[sid].length > 10) db.moodLog[sid] = db.moodLog[sid].slice(-10);
+            saveDB();
+
+            const supportive = {
+                great: lang==='si' ? 'හරිම සතුටුයි! 🎉 මේ momentum එක continue කරන්න!' : "That's wonderful! 🎉 Keep that momentum going!",
+                good: lang==='si' ? 'හොඳයි! 🙂 Steady going!' : "Glad to hear it! 🙂 Steady as you go.",
+                okay: lang==='si' ? 'හරි, "okay" දවසක් වුණත් problem නැහැ. 💪' : "An 'okay' day is still a day you showed up. 💪",
+                stressed: lang==='si' ? 'තේරෙනවා. *BREATHE* try කරන්න, නැත්නම් *POMODORO* එකකින් ටික වෙලාවක් focus වෙන්න.' : "That's tough — try *BREATHE* for a quick reset, or break your work into one *POMODORO* session at a time.",
+                tired: lang==='si' ? 'Rest එක වැදගත්. හැකි නම් ටික වෙලාවක් විවේක ගන්න. 😴' : "Rest matters. If you can, take a short break before pushing on. 😴",
+                sad: lang==='si' ? 'ඒක දැනීම OK. ඔයාට බැරිනම් කතා කරන්න ලෑස්ති යමෙක් සොයන්න — SLIIT counselling services ද තියෙනවා.' : "It's okay to feel that way. If it helps, talk to someone you trust — SLIIT also has student counselling services available.",
+            };
+            await reply(withFooter([
+                `${validMoods[moodWord]} *Mood logged: ${moodWord}*`,
+                ``,
+                supportive[moodWord],
+                ``,
+                `_Checking in regularly can help you notice patterns. Send *MOOD* anytime._`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── BREATHE — guided breathing exercise (instant, no AI) ──────────────────
+        if (cmd === 'BREATHE' || cmd === 'CALM') {
+            const lang = getLang(sid);
+            await reply(withFooter(lang==='si' ? [
+                `🌬️ *හුස්ම ගැනීමේ අභ්‍යාසය*`,
+                ``,
+                `එක මොහොතක් ගන්න. මේ steps follow කරන්න:`,
+                ``,
+                `1️⃣ *හුස්ම ගන්න* — 4 ගණන් (1...2...3...4)`,
+                `2️⃣ *රඳවාගන්න* — 4 ගණන්`,
+                `3️⃣ *හුස්ම පිට කරන්න* — 6 ගණන්`,
+                `4️⃣ *නැවත කරන්න* — 4 වතාවක්`,
+                ``,
+                `මේක 4-7-8 breathing ලෙස හැඳින්වෙනවා — stress සහ anxiety අඩු කිරීමට පර්යේෂණවලින් support කරපු technique එකක්.`,
+                ``,
+                `_හැඟීම වැඩි දුර කරදරයක් නම්, කතා කිරීමට කෙනෙකු සොයන්න._`,
+            ].join('\n') : [
+                `🌬️ *Breathing Exercise*`,
+                ``,
+                `Take a moment. Follow these steps:`,
+                ``,
+                `1️⃣ *Breathe in* — count of 4 (1...2...3...4)`,
+                `2️⃣ *Hold* — count of 4`,
+                `3️⃣ *Breathe out* — count of 6`,
+                `4️⃣ *Repeat* — 4 times`,
+                ``,
+                `This is called 4-7-8 breathing — a research-backed technique for reducing stress and anxiety in the moment.`,
+                ``,
+                `_If things feel like more than you can manage alone, please reach out to someone you trust._`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── SUPPORT — student support / wellbeing resources ──────────────────────
+        if (cmd === 'SUPPORT') {
+            const lang = getLang(sid);
+            await reply(withFooter(lang==='si' ? [
+                `🤝 *සහාය සහ සම්පත්*`,
+                ``,
+                `ඔයාට අමාරුවක් දැනෙනවානම්, ඔයා තනියම නෙවෙයි.`,
+                ``,
+                `📞 *SLIIT Student Counselling*`,
+                `   ඔයාගේ campus reception හරහා සම්බන්ධ වෙන්න`,
+                ``,
+                `📞 *National Mental Health Helpline (Sri Lanka)*`,
+                `   1926 (24/7, free)`,
+                ``,
+                `💬 *Sumithrayo* (emotional support)`,
+                `   011 2 696 666 / 011 2 692 909`,
+                ``,
+                `🛠️ *Bot tools that might help right now:*`,
+                `*BREATHE* — quick calming exercise`,
+                `*MOOD* — check in with how you're feeling`,
+                `*POMODORO* — break work into manageable chunks`,
+                `*STUDYPLAN* — reduce overwhelm with a clear plan`,
+            ].join('\n') : [
+                `🤝 *Support & Resources*`,
+                ``,
+                `If you're struggling, you're not alone.`,
+                ``,
+                `📞 *SLIIT Student Counselling*`,
+                `   Reach out via your campus reception`,
+                ``,
+                `📞 *National Mental Health Helpline (Sri Lanka)*`,
+                `   1926 (24/7, free)`,
+                ``,
+                `💬 *Sumithrayo* (emotional support, confidential)`,
+                `   011 2 696 666 / 011 2 692 909`,
+                ``,
+                `🛠️ *Bot tools that might help right now:*`,
+                `*BREATHE* — quick calming exercise`,
+                `*MOOD* — check in with how you're feeling`,
+                `*POMODORO* — break work into manageable chunks`,
+                `*STUDYPLAN* — reduce overwhelm with a clear plan`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── GOALS / HABITS — simple daily habit tracker with streaks ─────────────
+        if (cmd === 'GOALS' || cmd === 'GOAL' || cmd === 'HABITS' || cmd === 'STREAK') {
+            const lang = getLang(sid);
+            if (!db.habits[sid]) db.habits[sid] = {};
+            const userHabits = db.habits[sid];
+
+            if (!arg1) {
+                const entries = Object.entries(userHabits);
+                if (entries.length === 0) {
+                    await reply(withFooter(lang==='si'
+                        ? '🎯 *තවම habits නැත.*\n\nඑකතු කරන්න: *GOALS ADD <habit name>*\nඋදා: *GOALS ADD Study 1 hour*'
+                        : '🎯 *No habits tracked yet.*\n\nAdd one: *GOALS ADD <habit name>*\nExample: *GOALS ADD Study 1 hour*\nThen check it off daily with *GOALS DONE <habit name>*'));
+                    return;
+                }
+                const today = new Date().toDateString();
+                const lines = [`╔══════════════════════════╗`, `  🎯 *Your Habits*`, `╚══════════════════════════╝`, ``];
+                entries.forEach(([name, h]) => {
+                    const doneToday = h.lastDoneDate === today;
+                    lines.push(`${doneToday ? '✅' : '⬜'} *${name}*  —  🔥 ${h.streak} day streak`);
+                });
+                lines.push(``, `_*GOALS DONE <name>* to check off today_`, `_*GOALS ADD <name>* for a new habit_`);
+                await reply(withFooter(lines.join('\n')));
+                return;
+            }
+
+            const sub = arg1.toUpperCase();
+            if (sub === 'ADD') {
+                const habitName = body.replace(/^(GOALS|GOAL|HABITS|STREAK)\s+ADD\s*/i, '').trim();
+                if (!habitName) { await reply(withFooter('❌ Give your habit a name. Example: *GOALS ADD Study 1 hour*')); return; }
+                if (Object.keys(userHabits).length >= 5) { await reply(withFooter('⚠️ Max 5 habits at a time. Remove one to add more (coming soon) or keep using your current set!')); return; }
+                userHabits[habitName] = { streak: 0, lastDoneDate: null };
+                saveDB();
+                await reply(withFooter(`✅ *Habit added: "${habitName}"*\n\nSend *GOALS DONE ${habitName}* whenever you complete it today!`));
+                return;
+            }
+            if (sub === 'DONE') {
+                const habitName = body.replace(/^(GOALS|GOAL|HABITS|STREAK)\s+DONE\s*/i, '').trim();
+                const match = Object.keys(userHabits).find(h => h.toLowerCase() === habitName.toLowerCase());
+                if (!match) { await reply(withFooter(`❌ Habit "${habitName}" not found. Send *GOALS* to see your list.`)); return; }
+                const h = userHabits[match];
+                const today = new Date().toDateString();
+                const yesterday = new Date(Date.now() - 86400000).toDateString();
+                if (h.lastDoneDate === today) {
+                    await reply(withFooter(`✅ Already checked off today! 🔥 Streak: ${h.streak} days`));
+                    return;
+                }
+                h.streak = (h.lastDoneDate === yesterday) ? h.streak + 1 : 1;
+                h.lastDoneDate = today;
+                saveDB();
+                const milestone = [3,7,14,30,60,100].includes(h.streak) ? ` 🎉 *${h.streak}-day milestone!*` : '';
+                await reply(withFooter(`✅ *"${match}" done!*  🔥 Streak: ${h.streak} day${h.streak!==1?'s':''}${milestone}`));
+                return;
+            }
+            await reply(withFooter('❓ Usage: *GOALS* (view) | *GOALS ADD <name>* | *GOALS DONE <name>*'));
+            return;
+        }
+
+        // ── ENDCHAT ───────────────────────────────────────────────────────
         if (body.trim().toUpperCase() === 'ENDCHAT') {
             const lang = getLang(sid);
             if (aiConversations.has(sid)) {
@@ -621,24 +1976,20 @@ async function processMessage(jid, msg, body) {
                 aiConversations.delete(sid);
                 await reply(withFooter(lang==='si'
                     ? `✅ *AI සංවාදය අවසන්!*
-
-📊 ප්‍රශ්න ${turns}ක් අසන ලදී.
-
-නව ප්‍රශ්නයක් සඳහා *ASK <ප්‍රශ්නය>*`
-                    : `✅ *AI chat session ended!*
-
-📊 You asked ${turns} question(s).
-
-Start new: *ASK <question>*`
+📊 ප්‍රශ්න ${turns}ක් .
+නව: *ASK <ප්‍රශ්නය>*`
+                    : `✅ *AI chat ended!*
+📊 ${turns} question(s) asked.
+New session: *ASK <question>*`
                 ));
             } else {
-                await reply(withFooter(lang==='si' ? '⚠️ සක්‍රිය AI සංවාදයක් නොමැත.' : '⚠️ No active AI chat session.'));
+                await reply(withFooter(lang==='si' ? '⚠️ සක්‍රිය AI සංවාදයක් නොමැත.' : '⚠️ No active AI session.'));
             }
             return;
         }
 
-        // ── AI REPLY CONTINUATION ─────────────────────────────────────────────────
-        if (isReplyToAI && body.trim() && body.trim().toUpperCase() !== 'ENDCHAT') {
+        // ── AI REPLY CONTINUATION ─────────────────────────────────────────────
+        if (isReplyToAI && body.trim() && cmd !== 'ASK' && cmd !== 'SETAI' && cmd !== 'ENDCHAT') {
             const lang = getLang(sid);
             const session = aiConversations.get(sid);
             const question = body.trim();
@@ -646,15 +1997,14 @@ Start new: *ASK <question>*`
             const stuName = reg ? STUDENTS[reg]?.name?.split(' ')[0] : 'Student';
             const provKey = session?.providerKey || getAIProvider(sid);
             const prov = AI_PROVIDERS[provKey];
-            const history = session?.history ? [...session.history] : [];
-            // Add the new question to history
+            const history = session?.history || [];
             history.push({ role: 'user', content: question });
             await reply(withFooter(`⏳ *${prov.emoji} ${prov.name} is thinking...*`));
             try {
-                const sys = `You are a helpful academic assistant for SLIIT Year 1 Semester 1 students. Student: ${stuName}. Answer concisely under 350 words. Format code with backticks. Reply in Sinhala if asked in Sinhala. This is a continuing conversation - maintain context.`;
-                const answer = await prov.call(question, sys, history.slice(-8));
+                const sys = `You are a helpful academic assistant for SLIIT Year 1 Semester 1 students. Student: ${stuName}. Keep answers clear under 350 words. Use backticks for code. Reply in Sinhala if asked in Sinhala.`;
+                const answer = await prov.call(question, sys, history.slice(-8), 900);
                 history.push({ role: 'assistant', content: answer });
-                aiConversations.set(sid, { history: history.slice(-12), lastActivity: Date.now(), providerKey: provKey });
+                aiConversations.set(sid, { history: history.slice(-10), lastActivity: Date.now(), providerKey: provKey });
                 const turn = Math.floor(history.length/2);
                 await reply(withFooter(`${prov.emoji} *${prov.name}* (Turn ${turn})
 
@@ -665,7 +2015,7 @@ ${answer}
 
 _💬 Reply to continue | *ENDCHAT* to end_`));
             } catch(e) {
-                console.error('AI continuation error:', e.message);
+                console.error('AI reply error:', e.message);
                 await reply(withFooter(`❌ *${prov.name} unavailable.* Try *SETAI llama*`));
             }
             return;
@@ -705,121 +2055,352 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
             const quote = randomQuote(lang);
             const greeting = name ? (lang==='si' ? `👋 ආයුබෝවන් *${name}!*` : `👋 Hi, *${name}!*`) : (lang==='si' ? `👋 *SLIIT Y1S1 Bot එකට සාදරයෙන් පිළිගනිමු!*` : `👋 *Welcome to SLIIT Y1S1 Bot!*`);
 
+            // ─── Category sections (English) ────────────────────────────────────
+            const SECTIONS_EN = {
+                PROFILE: { emoji: '👤', title: 'My Profile & Registration', lines: [
+                    `*REG IT26XXXXXX*  📌 Register with your SLIIT IT number`,
+                    `*MYINFO*          📋 Your student profile`,
+                    `*MYGROUPS*        📊 Timetable & group info`,
+                    `*MYLINK*          🔗 Your WhatsApp group link`,
+                    `*MYEAC*           📚 Your EAC group info`,
+                    `*CLASSMATES*      👥 See your groupmates`,
+                    `*JOINGROUP WD01*  🏘️ Get any group link`,
+                ]},
+                TIMETABLE: { emoji: '📅', title: 'Timetable', lines: [
+                    `*TODAY*      📆 Today's schedule`,
+                    `*TOMORROW*   📆 Tomorrow's classes`,
+                    `*NEXT*       ⏰ Next class now`,
+                    `*WEEK*       📋 Full weekly view`,
+                    `*TT Friday*  📅 Day-specific timetable`,
+                ]},
+                SEARCH: { emoji: '🔍', title: 'Search', lines: [
+                    `*INFO IT26XXXXXX*  🔍 Any student's info`,
+                    `*SEARCH <name>*    🔎 Search by name`,
+                ]},
+                AI: { emoji: '🤖', title: 'AI Assistant', lines: [
+                    `*ASK <question>*  🧠 Ask AI anything!`,
+                    `  💬 Reply to AI message to continue chat`,
+                    `  e.g. ASK What is OOP?`,
+                    `*SETAI llama*     🦙 Llama 3.3 70B (default)`,
+                    `*SETAI gemini*    🟦 Google Gemma 2`,
+                    `*SETAI mistral*   ⚡ Mistral Saba`,
+                    `*SETAI deepseek*  🔬 DeepSeek R1`,
+                    `*QUOTE*           💬 Motivational quote`,
+                    `*ENDCHAT*         🔚 End AI session`,
+                ]},
+                CREATIVE: { emoji: '🎨', title: 'Creative Tools', lines: [
+                    `*IMAGE <description>*  🖼️ Generate AI image`,
+                    `  e.g. IMAGE futuristic SLIIT campus`,
+                    `*SLIDES <topic>*       📊 AI presentation`,
+                    `  e.g. SLIDES Intro to OOP`,
+                    `*VIDEO <topic>*        🎬 Find tutorials`,
+                    `  e.g. VIDEO database normalization`,
+                ]},
+                QUIZ: { emoji: '🎯', title: 'Quiz & Practice', lines: [
+                    `*QUIZ*            🎯 Random quiz question`,
+                    `*QUIZ english*    📝 English grammar quiz`,
+                    `*QUIZ ielts*      🎓 IELTS practice`,
+                    `*QUIZ java*       ☕ Java quiz`,
+                    `*QUIZ python*     🐍 Python quiz`,
+                    `*QUIZ coding*     💻 Coding concepts`,
+                    `*QUIZ java 5*     🎯 Scored 5-question set`,
+                    `  💬 Just reply with your answer!`,
+                    `*LEADERBOARD*     🏆 Top quiz scorers`,
+                    `*MYSTATS*         📊 Your quiz stats`,
+                ]},
+                STUDY: { emoji: '🧠', title: 'Study Tools', lines: [
+                    `*SUMMARIZE <text>*    📝 AI summary of notes`,
+                    `*EXPLAIN <topic>*     💡 Simple explanation`,
+                    `*TRANSLATE <text>*    🌐 Sinhala ↔ English`,
+                    `*FLASHCARDS <topic>*  🗂️ Study flashcards`,
+                    `*DEFINE <term>*       📖 Quick definition`,
+                    `*CODE <paste code>*   💻 Explain/debug code`,
+                    `*GRAMMAR <text>*      ✏️ Fix grammar errors`,
+                ]},
+                WRITING: { emoji: '✍️', title: 'Writing & Career', lines: [
+                    `*HUMANIZE <text>*   ✨ Make text sound natural`,
+                    `*EMAIL <request>*   📧 Draft a professional email`,
+                    `*CITE <source>*     📚 Generate a citation (APA/IEEE)`,
+                    `*STUDYPLAN <info>*  🗓️ AI study schedule`,
+                    `*INTERVIEW <role>*  🎤 Mock interview questions`,
+                ]},
+                TOOLS: { emoji: '⏱️', title: 'Productivity', lines: [
+                    `*POMODORO*       🍅 25-min focus timer`,
+                    `*POMODORO 50*    🍅 Custom duration`,
+                    `*POMODORO STOP*  ⏹️ Cancel timer`,
+                    `*FACT*           💡 Random tech fact`,
+                    `*GOALS*              🎯 Daily habit tracker`,
+                    `*GOALS ADD <name>*   ➕ Add a new habit`,
+                    `*GOALS DONE <name>*  ✅ Check off today`,
+                ]},
+                WELLBEING: { emoji: '💚', title: 'Deadlines & Wellbeing', lines: [
+                    `*DEADLINES*      📌 Upcoming assignments/exams`,
+                    `*REMINDME*       🔔 Enable deadline reminders`,
+                    `*UNREMIND*       🔕 Mute deadline reminders`,
+                    `*MOOD*           💭 Quick wellbeing check-in`,
+                    `*BREATHE*        🌬️ Guided breathing exercise`,
+                    `*SUPPORT*        🤝 Counselling & help resources`,
+                ]},
+                LANG: { emoji: '🌐', title: 'Language', lines: [
+                    `*LANG SI*  🇱🇰 Sinhala`,
+                    `*LANG EN*  🇬🇧 English (current)`,
+                ]},
+            };
+
+            // ─── Category sections (Sinhala) — titles localized, commands same ──
+            const SECTIONS_SI = {
+                PROFILE: { emoji: '👤', title: 'මගේ විස්තර සහ ලියාපදිංචිය', lines: SECTIONS_EN.PROFILE.lines },
+                TIMETABLE: { emoji: '📅', title: 'කාල සටහන', lines: SECTIONS_EN.TIMETABLE.lines },
+                SEARCH: { emoji: '🔍', title: 'සෙවීම', lines: SECTIONS_EN.SEARCH.lines },
+                AI: { emoji: '🤖', title: 'AI සහායක', lines: SECTIONS_EN.AI.lines },
+                CREATIVE: { emoji: '🎨', title: 'නිර්මාණාත්මක මෙවලම්', lines: SECTIONS_EN.CREATIVE.lines },
+                QUIZ: { emoji: '🎯', title: 'Quiz සහ පුහුණුව', lines: SECTIONS_EN.QUIZ.lines },
+                STUDY: { emoji: '🧠', title: 'ඉගෙනුම් මෙවලම්', lines: SECTIONS_EN.STUDY.lines },
+                WRITING: { emoji: '✍️', title: 'ලේඛනය සහ Career', lines: SECTIONS_EN.WRITING.lines },
+                TOOLS: { emoji: '⏱️', title: 'Productivity', lines: SECTIONS_EN.TOOLS.lines },
+                WELLBEING: { emoji: '💚', title: 'කාල සීමා සහ සුවතාව', lines: SECTIONS_EN.WELLBEING.lines },
+                LANG: { emoji: '🌐', title: 'භාෂාව', lines: SECTIONS_EN.LANG.lines },
+            };
+
+            const SECTIONS = lang === 'si' ? SECTIONS_SI : SECTIONS_EN;
+            const ORDER = ['PROFILE','TIMETABLE','SEARCH','AI','CREATIVE','QUIZ','STUDY','WRITING','TOOLS','WELLBEING','LANG'];
+            const ALIASES = {
+                PROFILE: ['PROFILE','ME','MY'], TIMETABLE: ['TIMETABLE','TT','SCHEDULE'], SEARCH: ['SEARCH','FIND'],
+                AI: ['AI','ASKAI'], CREATIVE: ['CREATIVE','TOOLS2'], QUIZ: ['QUIZ','PRACTICE'],
+                STUDY: ['STUDY'], WRITING: ['WRITING','CAREER'], TOOLS: ['TOOLS','PRODUCTIVITY'], LANG: ['LANG','LANGUAGE'],
+                WELLBEING: ['WELLBEING','DEADLINES','SUPPORT'],
+            };
+
+            const headerBox = lang === 'si'
+                ? [`╔══════════════════════════════╗`, `  🎓 *SLIIT Y1S1 Assistant Bot*`, `╚══════════════════════════════╝`]
+                : [`╔════════════════════════════╗`, `  🎓 *SLIIT Y1S1 Assistant Bot*`, `╚════════════════════════════╝`];
+
             let lines;
-            if (lang === 'si') {
-                lines = [
-                    `╔═══════════════════════════╗`,
-                    `  🤖 *SLIIT Y1S1 සහායක*`,
-                    `╚═══════════════════════════╝`,
-                    ``,
-                    greet,
-                    greeting,
-                    ``,
-                    `💬 _${quote}_`,
-                    ``,
-                    `━━━━ 📌 *ආරම්භ කරන්න* ━━━━`,
-                    ``,
-                    `*REG IT26XXXXXX*`,
-                    `  ඔබේ SLIIT IT අංකය යොදා ලියාපදිංචි වන්න`,
-                    `  ඔබේ profile සහ group link ලබාගන්න`,
-                    ``,
-                    `━━━━ 👤 *මගේ Profile* ━━━━`,
-                    ``,
-                    `*MYINFO*      ඔබේ student profile බලන්න`,
-                    `*MYGROUPS*    කාල සටහන සහ project group`,
-                    `*MYLINK*      WhatsApp group invite link`,
-                    `*CLASSMATES*  ඔබේ group එකේ සිටිනා අය`,
-                    `*JOINGROUP WD01*  ඕනෑම group link`,
-                    ``,
-                    `━━━━ 📅 *කාල සටහන* ━━━━`,
-                    ``,
-                    `*TODAY*      අදට ඇති classes`,
-                    `*TOMORROW*   හෙටට ඇති classes`,
-                    `*NEXT*       ඊළඟ class එක`,
-                    `*WEEK*       සතිය overview`,
-                    `*TT Friday*  දිනය අනුව class`,
-                    ``,
-                    `━━━━ 🔍 *සෙවීම* ━━━━`,
-                    ``,
-                    `*INFO IT26XXXXXX*  ශිෂ්‍යයෙකුගේ details`,
-                    `*SEARCH <නම>*      නමෙන් සෙවීම`,
-                    ``,
-                    `━━━━ 🤖 *AI සහායක* ━━━━`,
-                    ``,
-                    `*ASK <ප්‍රශ්නය>*  AI සහායකෙන් ප්‍රශ්නය අසන්න`,
-                    `  උදා: ASK What is a database?`,
-                    `  උදා: ASK Explain OOP in simple terms`,
-                    ``,
-                    `━━━━ 🌐 *භාෂාව* ━━━━`,
-                    ``,
-                    `*LANG EN*   Switch to English`,
-                    `*LANG SI*   සිංහල (දැනට)`,
-                    ``,
-                    `━━━━ ℹ️ *ගැන* ━━━━`,
-                    ``,
-                    `📞 SLIIT Help Center: +94 11 754 4801`,
-                    ``,
-                    `⚠️ _මෙම bot එක SLIIT ආයතනය සමඟ සම්බන්ධ නොවේ_`,
-                ];
+            const wantCategory = ORDER.find(key => ALIASES[key].includes((arg1||'').toUpperCase()));
+
+            if ((arg1||'').toUpperCase() === 'ALL') {
+                // ── Full menu: every category, one after another ──────────────────
+                lines = [...headerBox, ``, greet, greeting, ``, `💬 _${quote}_`, ``];
+                if (lang !== 'si') {
+                    lines.push(`━━━━ 📌 *Registration* ━━━━`,``, `*REG IT26XXXXXX*`, `  Register with your SLIIT IT number`, ``);
+                } else {
+                    lines.push(`━━━━ 📌 *ලියාපදිංචිය* ━━━━`, ``, `*REG IT26XXXXXX*`, `  ඔබේ SLIIT IT number එකෙන් register වෙන්න`, ``);
+                }
+                for (const key of ORDER) {
+                    const s = SECTIONS[key];
+                    lines.push(`━━━━ ${s.emoji} *${s.title}* ━━━━`, ``, ...s.lines, ``);
+                }
+                lines.push(`━━━━ ℹ️ *${lang==='si'?'About':'About'}* ━━━━`, ``,
+                    `📞 SLIIT Help: *+94 11 754 4801*`,
+                    `🤖 *BOTSTATS* — bot status & uptime`,
+                    `⚠️ _Not associated with SLIIT operations_`);
+            } else if (wantCategory) {
+                // ── Single category detail view ────────────────────────────────────
+                const s = SECTIONS[wantCategory];
+                lines = [...headerBox, ``, `${s.emoji} *${s.title}*`, ``, ...s.lines, ``,
+                    lang==='si' ? `_සියලුම categories: *HELP*_` : `_Back to categories: *HELP*_`];
             } else {
-                lines = [
-                    `╔═══════════════════════════╗`,
-                    `  🤖 *SLIIT Y1S1 Assistant*`,
-                    `╚═══════════════════════════╝`,
+                // ── Default: compact category index ────────────────────────────────
+                lines = [...headerBox, ``, greet, greeting, ``, `💬 _${quote}_`, ``];
+                if (lang === 'si') {
+                    lines.push(
+                        `📌 *ලියාපදිංචි නැත්නම්:* *REG IT26XXXXXX* යවන්න`,
+                        ``,
+                        `━━━━ 📂 *Categories* ━━━━`,
+                        ``,
+                    );
+                } else {
+                    lines.push(
+                        `📌 *Not registered yet?* Send *REG IT26XXXXXX*`,
+                        ``,
+                        `━━━━ 📂 *Categories* ━━━━`,
+                        ``,
+                    );
+                }
+                for (const key of ORDER) {
+                    const s = SECTIONS[key];
+                    lines.push(`*HELP ${key}*  ${s.emoji} ${s.title}`);
+                }
+                lines.push(
                     ``,
-                    greet,
-                    greeting,
+                    lang==='si' ? `💡 _සියල්ල එකවර බැලීමට: *HELP ALL*_` : `💡 _Want everything in one message? Send *HELP ALL*_`,
                     ``,
-                    `💬 _${quote}_`,
-                    ``,
-                    `━━━━ 📌 *Start Here* ━━━━`,
-                    ``,
-                    `*REG IT26XXXXXX*`,
-                    `  Register using your SLIIT IT number`,
-                    `  to unlock your profile & group link`,
-                    ``,
-                    `━━━━ 👤 *My Profile* ━━━━`,
-                    ``,
-                    `*MYINFO*      View your student profile`,
-                    `*MYGROUPS*    Your timetable & project group`,
-                    `*MYLINK*      Get your WhatsApp group link`,
-                    `*CLASSMATES*  See who's in your project group`,
-                    `*JOINGROUP WD01*  Get any group's invite link`,
-                    ``,
-                    `━━━━ 📅 *Timetable* ━━━━`,
-                    ``,
-                    `*TODAY*      Today's class schedule`,
-                    `*TOMORROW*   Tomorrow's classes`,
-                    `*NEXT*       Your next upcoming class`,
-                    `*WEEK*       Full weekly timetable`,
-                    `*TT Friday*  Timetable for a specific day`,
-                    ``,
-                    `━━━━ 🔍 *Search* ━━━━`,
-                    ``,
-                    `*INFO IT26XXXXXX*  Look up any student`,
-                    `*SEARCH <name>*    Search students by name`,
-                    ``,
-                    `━━━━ 🤖 *AI Assistant* ━━━━`,
-                    ``,
-                    `*ASK <question>*  Ask the AI anything!`,
-                    `  e.g. ASK What is a database?`,
-                    `  e.g. ASK Explain OOP in simple terms`,
-                    `  e.g. ASK Help me understand recursion`,
-                    ``,
-                    `━━━━ 🌐 *Language* ━━━━`,
-                    ``,
-                    `*LANG SI*   Switch to Sinhala / සිංහල`,
-                    `*LANG EN*   English (current)`,
-                    ``,
-                    `━━━━ ℹ️ *About* ━━━━`,
-                    ``,
-                    `📞 *SLIIT Help Center:* +94 11 754 4801`,
-                    ``,
-                    `⚠️ _This bot is not associated with SLIIT operations_`,
-                ];
+                    lang==='si' ? `🔥 *Popular:* *ASK*, *QUIZ*, *TODAY*, *MYINFO*` : `🔥 *Popular:* *ASK <question>*, *QUIZ*, *TODAY*, *MYINFO*`,
+                );
             }
-            if (isAdmin(sid)) lines.push(``, `🛡️ *${lang==='si'?'Admin:':'Admin:'} Send *ADMINHELP* for admin commands.`);
+
+            if (isAdmin(sid)) lines.push(``, `🛡️ *Admin:* Send *ADMINHELP* for admin commands.`);
             await reply(withFooter(lines.join('\n')));
+            return;
+        }
+
+        // ── IMAGE — AI image generation (Pollinations - free) ─────────────────
+        if (cmd === 'IMAGE' || cmd === 'IMG' || cmd === 'IMAGINE') {
+            const lang = getLang(sid);
+            const prompt = body.replace(/^(IMAGE|IMG|IMAGINE)\s*/i, '').trim();
+            if (!prompt) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Description එකක් දෙන්න!*\n\nඋදා: *IMAGE a beautiful sunset*'
+                    : '❌ *Include a description!*\n\nExample: *IMAGE a futuristic SLIIT campus*\nExample: *IMAGE a programmer at night*'
+                ));
+                return;
+            }
+            await reply(withFooter(lang==='si'
+                ? `⏳ *AI Image හදනවා...*\n\n"${prompt.slice(0,50)}"\n\nරැඳී සිටින්න! (10-20s)`
+                : `⏳ *Generating AI Image...*\n\n"${prompt.slice(0,50)}"\n\nPlease wait (10-20s)!`
+            ));
+            // Primary: Hugging Face free Inference API (needs HF_API_KEY env var)
+            const fetchImageHF = async () => {
+                const hfKey = process.env.HF_API_KEY || '';
+                if (!hfKey) throw new Error('No HF_API_KEY configured');
+                const model = 'black-forest-labs/FLUX.1-schnell';
+                const resp = await fetch(`https://router.huggingface.co/hf-inference/models/${model}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + hfKey,
+                        'Content-Type': 'application/json',
+                        'Accept': 'image/png'
+                    },
+                    body: JSON.stringify({ inputs: prompt + ', high quality, detailed, digital art' }),
+                    signal: AbortSignal.timeout(60000)
+                });
+                const contentType = resp.headers.get('content-type') || '';
+                if (!resp.ok || !contentType.startsWith('image/')) {
+                    let detail = '';
+                    try { detail = JSON.stringify(await resp.json()); } catch(_) {}
+                    throw new Error(`HF HTTP ${resp.status} ${detail}`);
+                }
+                const buffer = Buffer.from(await resp.arrayBuffer());
+                if (buffer.length < 2000) throw new Error('HF image too small');
+                return buffer;
+            };
+            // Fallback: Pollinations free anonymous tier (no seed/nologo — those now require payment)
+            const fetchImagePollinations = async () => {
+                const encodedPrompt = encodeURIComponent(prompt + ', high quality, detailed, digital art');
+                const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600`;
+                const resp = await fetch(imageUrl, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SLIITBot/1.0)' },
+                    signal: AbortSignal.timeout(45000)
+                });
+                if (!resp.ok) throw new Error(`Pollinations HTTP ${resp.status}`);
+                const contentType = resp.headers.get('content-type') || '';
+                const buffer = Buffer.from(await resp.arrayBuffer());
+                if (!contentType.startsWith('image/') || buffer.length < 2000) {
+                    throw new Error(`Pollinations bad response (type=${contentType}, size=${buffer.length})`);
+                }
+                return buffer;
+            };
+            try {
+                let buffer;
+                try {
+                    buffer = await fetchImageHF();
+                } catch (e1) {
+                    console.warn('HF image failed:', e1.message, '— trying Pollinations fallback...');
+                    buffer = await fetchImagePollinations();
+                }
+                await directSend(sid, {
+                    image: buffer,
+                    caption: withFooter(lang==='si'
+                        ? `🎨 *AI Generated Image*\n\n📝 "${prompt}"\n\n_නව image: IMAGE <description>_`
+                        : `🎨 *AI Generated Image*\n\n📝 "${prompt}"\n\n_More: IMAGE <description>_`
+                    )
+                });
+            } catch(e) {
+                console.error('Image error:', e.message);
+                await reply(withFooter(lang==='si'
+                    ? '❌ *Image generate කිරීමට අසමත් විය.*\n\nසේවාව තාවකාලිකව busy විය හැක. ස්වල්ප වෙලාවකින් නැවත try කරන්න, හෝ description එක සරල කරන්න.'
+                    : '❌ *Could not generate the image right now.*\n\nThe image service may be busy. Try again in a moment, or use a simpler description.'
+                ));
+            }
+            return;
+        }
+
+        // ── VIDEO — YouTube educational search ────────────────────────────────
+        if (cmd === 'VIDEO' || cmd === 'YOUTUBE' || cmd === 'YT') {
+            const lang = getLang(sid);
+            const query = body.replace(/^(VIDEO|YOUTUBE|YT)\s*/i, '').trim();
+            if (!query) {
+                await reply(withFooter('❌ Include a topic!\n\nExample: *VIDEO OOP in Java*\nExample: *VIDEO Database normalization*'));
+                return;
+            }
+            const ytSearch = encodeURIComponent(query + ' tutorial');
+            await reply(withFooter([
+                `🎬 *Educational Videos*`,
+                ``,
+                `📚 Topic: *${query}*`,
+                ``,
+                `🔗 Watch on YouTube:`,
+                `https://www.youtube.com/results?search_query=${ytSearch}`,
+                ``,
+                `💡 Also try:`,
+                `• ${query} for beginners`,
+                `• ${query} explained simply`,
+                `• ${query} crash course`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── SLIDES — AI presentation maker ────────────────────────────────────
+        if (cmd === 'SLIDES' || cmd === 'PPT' || cmd === 'PRESENTATION') {
+            const lang = getLang(sid);
+            const topic = body.replace(/^(SLIDES|PPT|PRESENTATION)\s*/i, '').trim();
+            if (!topic) {
+                await reply(withFooter(lang==='si'
+                    ? '❌ Topic එකක් දෙන්න!\n\nඋදා: *SLIDES Introduction to OOP*'
+                    : '❌ Include a topic!\n\nExample: *SLIDES Introduction to OOP*\nExample: *SLIDES Cloud Computing*'
+                ));
+                return;
+            }
+            const provKey = getAIProvider(sid);
+            const prov = AI_PROVIDERS[provKey];
+            await reply(withFooter(`⏳ *${prov.emoji} Creating presentation...*\n\nTopic: "${topic.slice(0,50)}"`));
+            try {
+                const reg = db.registrations[sid];
+                const stuName = reg ? STUDENTS[reg]?.name?.split(' ')[0] : 'Student';
+                const sys = 'You are an expert presentation creator for university students.';
+                const prompt = `Create a detailed slide-by-slide presentation for SLIIT Year 1 student "${stuName}" on: "${topic}"
+
+Use this EXACT format for each slide:
+
+📑 SLIDE 1 — TITLE
+- Main Title: [title]
+- Subtitle: [subtitle]
+- Hook: [one interesting fact]
+
+📑 SLIDE 2 — AGENDA
+- Point 1
+- Point 2
+- Point 3
+- Point 4
+
+📑 SLIDE 3 — [topic]
+- Key point 1
+- Key point 2
+- Key point 3
+🗣️ Speaker note: [what to say]
+
+[Continue for 5-7 more slides]
+
+📑 FINAL SLIDE — THANK YOU
+- Summary: [3 key takeaways]
+- Contact: [student name]
+- Q&A
+
+Keep bullets under 8 words each. Make it professional.`;
+                const answer = await prov.call(prompt, sys, [], 1800);
+                if (answer.length > 3800) {
+                    const mid = answer.lastIndexOf('📑', Math.floor(answer.length/2));
+                    const splitAt = mid > 100 ? mid : Math.floor(answer.length/2);
+                    await reply(withFooter(`📊 *AI Presentation (Part 1)*\n\n${answer.slice(0, splitAt)}`));
+                    await sleep(1200);
+                    await reply(withFooter(`📊 *AI Presentation (Part 2)*\n\n${answer.slice(splitAt)}\n\n_💡 Copy to Google Slides or PowerPoint!_`));
+                } else {
+                    await reply(withFooter(`📊 *AI Presentation*\n\n${answer}\n\n_💡 Copy to Google Slides or PowerPoint!_`));
+                }
+            } catch(e) {
+                console.error('Slides error:', e.message);
+                await reply(withFooter('❌ Could not create presentation. Try again.'));
+            }
             return;
         }
 
@@ -841,6 +2422,31 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
             return;
         }
 
+        // ── SETAI ────────────────────────────────────────────────────────────
+        if (cmd === 'SETAI' || cmd === 'USEAI') {
+            const lang = getLang(sid);
+            const ch = (arg1||'').toLowerCase();
+            if (!ch) {
+                const cur = getAIProvider(sid);
+                const lines = [
+                    lang==='si' ? '🤖 *AI සේවාව තෝරන්න*' : '🤖 *Select AI Provider*', '',
+                    (lang==='si' ? 'දැනට: ' : 'Current: ') + AI_PROVIDERS[cur].emoji + ' *' + AI_PROVIDERS[cur].name + '*', '',
+                    '*SETAI gemini*  🟦 Google Gemma 4 ✅',
+                    '*SETAI llama*   🦙 Llama Nvidia ✅',
+                    '*SETAI kimi*    🌙 Kimi AI ✅',
+                    '*SETAI liquid*  💧 Liquid AI ✅',
+                ];
+                await reply(withFooter(lines.join('\n'))); return;
+            }
+            if (!AI_PROVIDERS[ch]) {
+                await reply(withFooter('❌ Options: *SETAI gemini* or *SETAI llama*')); return;
+            }
+            if (!db.aiProvider) db.aiProvider = {};
+            db.aiProvider[sid] = ch; saveDB();
+            await reply(withFooter('✅ *AI set to ' + AI_PROVIDERS[ch].emoji + ' ' + AI_PROVIDERS[ch].name + '!*\n\nNow use *ASK <question>*'));
+            return;
+        }
+
         // ── QUOTE — motivational quote ────────────────────────────────────────
         if (cmd === 'QUOTE' || cmd === 'MOTIVATE') {
             const lang = getLang(sid);
@@ -849,133 +2455,97 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
             return;
         }
 
-        // ── ASK — AI assistant ────────────────────────────────────────────────
-        if (cmd === 'ASK' || cmd === 'AI') {
-            const lang = getLang(sid);
-            const question = body.replace(/^(ASK|AI)\s*/i, '').trim();
-            if (!question) {
-                const usage = lang==='si'
-                    ? '❌ *ප්‍රශ්නයක් යවන්න!*\n\nඋදා: *ASK What is a database?*\nඋදා: *ASK OOP explain කරන්න*'
-                    : '❌ *Please include your question!*\n\nExample: *ASK What is a database?*\nExample: *ASK Explain recursion simply*';
-                await reply(withFooter(usage));
-                return;
-            }
-            const reg = db.registrations[sid];
-            const stuName = reg ? STUDENTS[reg]?.name?.split(' ')[0] : 'Student';
-            await reply(withFooter(lang==='si'
-                ? `⏳ *AI සිතනවා...*\n\n"${question.slice(0,60)}${question.length>60?'...':''}" ගැන\n\nකරුණාකර රැඳී සිටින්න!`
-                : `⏳ *AI is thinking...*\n\nLooking into: "${question.slice(0,60)}${question.length>60?'...':''}"\n\nPlease wait a moment!`
-            ));
-            try {
-                const sysPrompt = `You are a helpful academic assistant for SLIIT (Sri Lanka Institute of Information Technology) Year 1 Semester 1 students. 
-The student's name is ${stuName}. 
-Answer questions about programming, databases, mathematics, IT concepts, and campus life.
-Keep answers clear, concise and student-friendly.
-Use simple English. If the question is in Sinhala, reply in Sinhala.
-Format code blocks with backticks. Keep answers under 400 words.`;
-                const resp = await fetch('https://api.anthropic.com/v1/messages', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        model: 'claude-haiku-4-5-20251001',
-                        max_tokens: 600,
-                        system: sysPrompt,
-                        messages: [{ role: 'user', content: question }]
-                    })
-                });
-                const data = await resp.json();
-                const answer = data?.content?.[0]?.text || 'Sorry, I could not get an answer.';
-                const header = lang==='si'
-                    ? `🤖 *AI සහායක*\n\n❓ *ප්‍රශ්නය:* ${question}\n\n💡 *පිළිතුර:*\n`
-                    : `🤖 *AI Assistant*\n\n❓ *Question:* ${question}\n\n💡 *Answer:*\n`;
-                const footer = lang==='si'
-                    ? `\n\n_තවත් ප්‍රශ්නයක් ඇත්නම් *ASK <ප්‍රශ්නය>* යවන්න_`
-                    : `\n\n_Ask another question with *ASK <question>*_`;
-                await reply(withFooter(header + answer + footer));
-            } catch(e) {
-                console.error('❌ AI error:', e.message);
-                await reply(withFooter(lang==='si'
-                    ? '❌ *AI සේවාව දැන් ලබා ගත නොහැක.*\n\nපසුව නැවත උත්සාහ කරන්න.'
-                    : '❌ *AI service unavailable right now.*\n\nPlease try again later.'
-                ));
-            }
-            return;
-        }
-
-        // ── LANG ─────────────────────────────────────────────────────────────
-        if (cmd === 'LANG') {
-            if (!db.languages) db.languages = {};
-            const ch = (arg1||'').toUpperCase();
-            if (ch==='SI'||ch==='SINHALA') { db.languages[sid]='si'; saveDB(); await reply(withFooter('✅ *භාෂාව සිංහලට සකසන ලදී!*\n\n*HELP* යවන්න menu බලන්න.')); return; }
-            if (ch==='EN'||ch==='ENGLISH') { db.languages[sid]='en'; saveDB(); await reply(withFooter('✅ *Language set to English!*\n\nSend *HELP* to see menu.')); return; }
-            await reply(withFooter('🌐 *Choose language*\n\n*LANG EN* — 🇬🇧 English\n*LANG SI* — 🇱🇰 සිංහල'));
-            return;
-        }
-
-        // ── SETAI ─────────────────────────────────────────────────────────────
-        if (cmd === 'SETAI' || cmd === 'USEAI') {
-            const lang = getLang(sid);
-            const ch = (arg1||'').toLowerCase();
-            if (!ch) {
-                const cur = getAIProvider(sid);
-                const lines = [lang==='si'?'🤖 *AI සේවාව තෝරන්න*':'🤖 *Select AI Provider*', '',
-                    (lang==='si'?'දැනට: ':'Current: ') + AI_PROVIDERS[cur].emoji + ' *' + AI_PROVIDERS[cur].name + '*', '',
-                    '*SETAI llama*     🦙 Llama 3.3 70B (recommended)',
-                    '*SETAI gemini*    🟦 Google Gemma 2',
-                    '*SETAI mistral*   ⚡ Mistral Saba',
-                    '*SETAI deepseek*  🔬 DeepSeek R1',
-                ];
-                await reply(withFooter(lines.join('\n'))); return;
-            }
-            if (!AI_PROVIDERS[ch]) { await reply(withFooter('❌ Options: *SETAI llama* / *SETAI gemini* / *SETAI mistral* / *SETAI deepseek*')); return; }
-            if (!db.aiProvider) db.aiProvider = {};
-            db.aiProvider[sid] = ch; saveDB();
-            await reply(withFooter('✅ *AI set to ' + AI_PROVIDERS[ch].emoji + ' ' + AI_PROVIDERS[ch].name + '!*\n\nUse *ASK <question>* to start.'));
-            return;
-        }
-
-        // ── QUOTE ─────────────────────────────────────────────────────────────
-        if (cmd === 'QUOTE' || cmd === 'MOTIVATE') {
-            const lang = getLang(sid);
-            await reply(withFooter(`💬 *${lang==='si'?'දිරිගැන්වීම':'Daily Motivation'}*\n\n_${randomQuote(lang)}_\n\n_Keep pushing! 💪_`));
-            return;
-        }
-
-        // ── MYEAC — Show EAC group info ────────────────────────────────────────
+        // ── MYEAC — Show EAC (English for Academic Communication) group info ────
         if (cmd === 'MYEAC' || cmd === 'EAC') {
             const lang = getLang(sid);
             const reg = db.registrations[sid];
             if (!reg) { await reply(withFooter(lang==='si'?'⚠️ ලියාපදිංචි වී නැත. *REG IT26XXXXXX* යවන්න.':'⚠️ Not registered. Send *REG IT26XXXXXX* first.')); return; }
             const eacGroup = EAC_GROUPS[reg];
-            if (!eacGroup) { await reply(withFooter(lang==='si'?`⚠️ *${reg}* සඳහා EAC group data නොමැත.`:`⚠️ No EAC group data found for *${reg}*.`)); return; }
-            const ttGroup = eacGroup.slice(0,2); // e.g. "01", "02"
-            const subGroup = eacGroup.slice(2); // e.g. "A", "B"
-            const groupName = `Y1.S1.WD.IT.${ttGroup}.${subGroup}`;
-            const lines = [
+            if (!eacGroup) { await reply(withFooter(`⚠️ No EAC group found for *${reg}*. Contact admin.`)); return; }
+            const ttNum  = eacGroup.slice(0,2);
+            const subGrp = eacGroup.slice(2);
+            await reply(withFooter([
                 `╔══════════════════════════╗`,
                 `  📚 *EAC Group Info*`,
                 `╚══════════════════════════╝`,
                 ``,
-                `🆔 Student: *${reg}*`,
+                `🆔 Student:     *${reg}*`,
                 ``,
-                `📋 *EAC Group:* ${eacGroup}`,
-                `📌 *Group Name:* ${groupName}`,
+                `📋 *EAC Group:*  ${eacGroup}`,
+                `📌 *Class Name:* Y1.S1.WD.IT.${ttNum}.${subGrp}`,
+                `📚 *Subject:*    English for Academic Communication`,
                 ``,
-                `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-                `💡 Your EAC class is group *${eacGroup}*`,
-                `   (English for Academic Communication)`,
-            ];
-            await reply(withFooter(lines.join('\n')));
+                `💡 Your EAC class is in Group *${eacGroup}*`,
+            ].join('\n')));
             return;
         }
 
-        // ── ASK — Multi-AI with conversation memory ────────────────────────────
+        // ── QUIZ — Daily practice questions (AI generated) ───────────────────────
+        if (cmd === 'QUIZ' || cmd === 'PRACTICE' || cmd === 'Q') {
+            const lang = getLang(sid);
+            const category = (arg1||'').toLowerCase();
+            const categories = ['english','grammar','ielts','speaking','java','python','html','coding','pseudo','all'];
+            const setCount = parseInt(arg2, 10);
+            if (category && !categories.includes(category)) {
+                await reply(withFooter([
+                    `╔══════════════════════════╗`,
+                    `  🎯 *Quiz Categories*`,
+                    `╚══════════════════════════╝`,
+                    ``,
+                    `*QUIZ english*   📝 English grammar`,
+                    `*QUIZ ielts*     🎓 IELTS preparation`,
+                    `*QUIZ speaking*  🗣️ Speaking skills`,
+                    `*QUIZ java*      ☕ Java programming`,
+                    `*QUIZ python*    🐍 Python programming`,
+                    `*QUIZ html*      🌐 HTML/CSS/Web`,
+                    `*QUIZ coding*    💻 General coding`,
+                    `*QUIZ pseudo*    📋 Pseudocode/Logic`,
+                    `*QUIZ all*       🎲 Random category`,
+                    ``,
+                    `💡 *Scored sets:* *QUIZ java 5* — 5 questions, final score!`,
+                    ``,
+                    `_Just send *QUIZ* for a random question!_`,
+                ].join('\n')));
+                return;
+            }
+            const prov = AI_PROVIDERS[getAIProvider(sid)];
+            await reply(withFooter(`⏳ *${prov.emoji} Generating quiz question...*`));
+            try {
+                const cat = category || 'all';
+                const q = await generateQuizQuestion(prov, cat);
+                const session = { question: q.question, answer: q.answer, category: q.category, asked: Date.now() };
+                if (setCount >= 2 && setCount <= 10) {
+                    session.setInfo = { category: cat, remaining: setCount - 1, score: 0, total: setCount };
+                }
+                quizSessions.set(sid, session);
+                const diffEmoji = q.difficulty.toLowerCase().includes('easy') ? '🟢' : q.difficulty.toLowerCase().includes('hard') ? '🔴' : '🟡';
+                const setLine = session.setInfo
+                    ? `\n📋 *Question 1 of ${session.setInfo.total}*\n`
+                    : '';
+                await reply(withFooter([
+                    `🎯 *Quiz Time!*`,
+                    setLine,
+                    `📚 Category: *${q.category.toUpperCase()}*  ${diffEmoji} ${q.difficulty}`,
+                    ``,
+                    `❓ *${q.question}*`,
+                    ``,
+                    `_Reply with your answer!_`,
+                    session.setInfo ? '' : `_Send *QUIZ* to skip & get a new question_`,
+                ].filter(l => l !== '').join('\n')));
+            } catch(e) {
+                console.error('Quiz error:', e.message);
+                await reply(withFooter('❌ Could not generate a question. Try *QUIZ english* or *QUIZ java*.'));
+            }
+            return;
+        }
+
+        // ── ASK — AI with conversation memory ───────────────────────────────────
         if (cmd === 'ASK' || cmd === 'AI') {
             const lang = getLang(sid);
             const question = body.replace(/^(ASK|AI)\s*/i, '').trim();
             if (!question) {
                 await reply(withFooter(lang==='si'
-                    ? '❌ ප්‍රශ්නයක් යවන්න!\n\nඋදා: *ASK What is OOP?*\n\nAI change: *SETAI llama*'
+                    ? '❌ ප්‍රශ්නයක් යවන්න!\n\nඋදා: *ASK What is OOP?*'
                     : '❌ Include your question!\n\nExample: *ASK What is OOP?*\nSwitch AI: *SETAI llama*'
                 ));
                 return;
@@ -984,254 +2554,34 @@ Format code blocks with backticks. Keep answers under 400 words.`;
             const stuName = reg ? STUDENTS[reg]?.name?.split(' ')[0] : 'Student';
             const provKey = getAIProvider(sid);
             const prov = AI_PROVIDERS[provKey];
-            // Build/continue session
-            const existingSession = aiConversations.get(sid);
-            const history = existingSession?.history ? [...existingSession.history] : [];
-            history.push({ role: 'user', content: question });
-            aiConversations.set(sid, { history: history.slice(-12), lastActivity: Date.now(), providerKey: provKey });
+            const session = aiConversations.get(sid) || { history: [], lastActivity: Date.now(), providerKey: provKey };
+            session.history.push({ role: 'user', content: question });
+            session.lastActivity = Date.now();
+            session.providerKey = provKey;
             await reply(withFooter(lang==='si'
-                ? `⏳ *${prov.emoji} ${prov.name} සිතනවා...*\n\n"${question.slice(0,50)}" ගැන`
-                : `⏳ *${prov.emoji} ${prov.name} is thinking...*\n\nLooking into: "${question.slice(0,50)}"`
+                ? `⏳ *${prov.emoji} ${prov.name} සිතනවා...*`
+                : `⏳ *${prov.emoji} ${prov.name} is thinking...*`
             ));
             try {
-                const sys = `You are a helpful academic assistant for SLIIT Year 1 Semester 1 students. Student: ${stuName}. Answer concisely under 350 words. Format code with backticks. Reply in Sinhala if asked in Sinhala. Maintain context from conversation history.`;
-                const answer = await prov.call(question, sys, history.slice(-8));
-                const updatedHistory = [...history, { role: 'assistant', content: answer }];
-                aiConversations.set(sid, { history: updatedHistory.slice(-12), lastActivity: Date.now(), providerKey: provKey });
-                const turn = Math.floor(updatedHistory.length/2);
+                const sys = `You are a helpful academic assistant for SLIIT Year 1 Semester 1 students. Student: ${stuName}. Answer questions about programming, databases, maths, IT concepts. Keep answers clear under 350 words. Format code with backticks. Reply in Sinhala if asked in Sinhala.`;
+                const answer = await prov.call(question, sys, session.history.slice(-8), 900);
+                session.history.push({ role: 'assistant', content: answer });
+                aiConversations.set(sid, { ...session, history: session.history.slice(-10) });
+                const turn = Math.floor(session.history.length/2);
                 const header = lang==='si'
                     ? `${prov.emoji} *${prov.name} සහායක* (Turn ${turn})\n\n❓ *${question}*\n\n💡 *පිළිතුර:*\n`
                     : `${prov.emoji} *${prov.name} Assistant* (Turn ${turn})\n\n❓ *${question}*\n\n💡 *Answer:*\n`;
                 const foot = lang==='si'
-                    ? `\n\n_💬 Reply to continue | *ENDCHAT* end | *SETAI llama* change AI_`
-                    : `\n\n_💬 *Reply* to this message to continue | *ENDCHAT* to end_`;
+                    ? `\n\n_💬 Reply to continue | *ENDCHAT* end_`
+                    : `\n\n_💬 *Reply* to continue the chat | *ENDCHAT* to end_`;
                 await reply(withFooter(header + answer + foot));
             } catch(e) {
                 console.error('AI error:', e.message);
-                aiConversations.delete(sid);
                 await reply(withFooter(lang==='si'
-                    ? `❌ *${prov.name} ලබා ගත නොහැක.* *SETAI llama* try කරන්න.`
+                    ? `❌ *${prov.name} ලබා ගත නොහැක.* *SETAI llama* try.`
                     : `❌ *${prov.name} unavailable.* Try: *SETAI llama*`
                 ));
             }
-            return;
-        }
-
-        // ── IMAGE — AI image generation ────────────────────────────────────────
-        if (cmd === 'IMAGE' || cmd === 'IMG' || cmd === 'IMAGINE') {
-            const lang = getLang(sid);
-            const prompt = body.replace(/^(IMAGE|IMG|IMAGINE)\s*/i, '').trim();
-            if (!prompt) { await reply(withFooter(lang==='si'?'❌ *IMAGE futuristic SLIIT campus* ලෙස යවන්න':'❌ Example: *IMAGE futuristic SLIIT campus*')); return; }
-            await reply(withFooter(lang==='si'?`⏳ *AI image generate කරනවා...*\n"${prompt.slice(0,50)}"\nරැඳී සිටින්න!⏳`:`⏳ *Generating AI image...*\n"${prompt.slice(0,50)}"\nPlease wait!`));
-            try {
-                const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=800&height=600&nologo=true&seed=${Date.now()}`;
-                const resp = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) });
-                if (!resp.ok) throw new Error('Image fetch failed: ' + resp.status);
-                const buffer = Buffer.from(await resp.arrayBuffer());
-                await directSend(sid, { image: buffer, caption: withFooter(`🎨 *AI Generated Image*\n\n📝 Prompt: ${prompt}\n\n_Generate another: IMAGE <description>_`) });
-            } catch(e) {
-                console.error('Image error:', e.message);
-                await reply(withFooter('❌ *Could not generate image.*\n\nTry a simpler description or try again later.'));
-            }
-            return;
-        }
-
-        // ── SLIDES — AI presentation maker ────────────────────────────────────
-        if (cmd === 'SLIDES' || cmd === 'PPT' || cmd === 'PRESENTATION') {
-            const lang = getLang(sid);
-            const topic = body.replace(/^(SLIDES|PPT|PRESENTATION)\s*/i, '').trim();
-            if (!topic) { await reply(withFooter(lang==='si'?'❌ *SLIDES Introduction to OOP* ලෙස යවන්න':'❌ Example: *SLIDES Introduction to OOP*')); return; }
-            const prov = AI_PROVIDERS[getAIProvider(sid)];
-            await reply(withFooter(`⏳ *${prov.emoji} Creating presentation...*\n\nTopic: "${topic.slice(0,50)}"`));
-            try {
-                const reg = db.registrations[sid];
-                const stuName = reg ? STUDENTS[reg]?.name?.split(' ')[0] : 'Student';
-                const prompt = `Create a university presentation outline for SLIIT student ${stuName} on: "${topic}"\n\nFormat:\n🎯 TITLE: [Title]\n\n📑 SLIDE 1: INTRODUCTION\n• [point]\n• [point]\nSpeaker notes: [notes]\n\n📑 SLIDE 2-7: [Continue with key topics]\n\n📑 FINAL SLIDE: CONCLUSION\n• Key takeaways\n\nKeep each slide to 3-4 bullet points.`;
-                const answer = await prov.call(prompt, 'You are an expert presentation creator for university students.', []);
-                if (answer.length > 3500) {
-                    const mid = answer.indexOf('\n📑', Math.floor(answer.length/2));
-                    await reply(withFooter(`📊 *AI Presentation - Part 1*\n${answer.slice(0, mid > 0 ? mid : Math.floor(answer.length/2))}`));
-                    await sleep(1000);
-                    await reply(withFooter(`📊 *AI Presentation - Part 2*\n${answer.slice(mid > 0 ? mid : Math.floor(answer.length/2))}\n\n_💡 Copy to Google Slides or PowerPoint!_`));
-                } else {
-                    await reply(withFooter(`📊 *AI Presentation*\n\n${answer}\n\n_💡 Copy to Google Slides or PowerPoint!_`));
-                }
-            } catch(e) {
-                console.error('Slides error:', e.message);
-                await reply(withFooter('❌ *Could not create presentation.* Try again later.'));
-            }
-            return;
-        }
-
-        // ── VIDEO — Find educational videos ───────────────────────────────────
-        if (cmd === 'VIDEO' || cmd === 'YT' || cmd === 'YOUTUBE') {
-            const lang = getLang(sid);
-            const query = body.replace(/^(VIDEO|YT|YOUTUBE)\s*/i, '').trim();
-            if (!query) { await reply(withFooter('❌ Example: *VIDEO OOP in Java*')); return; }
-            const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query + ' tutorial')}`;
-            await reply(withFooter([
-                `🎬 *Educational Videos*`,
-                ``,
-                `📚 Topic: *${query}*`,
-                ``,
-                `🔗 *Search Results:*`,
-                ytUrl,
-                ``,
-                `💡 *Quick searches:*`,
-                `• ${query} tutorial for beginners`,
-                `• ${query} explained simply`,
-                `• SLIIT ${query}`,
-                ``,
-                `_Tap the link to find videos!_`,
-            ].join('\n')));
-            return;
-        }
-
-        // ── REG ───────────────────────────────────────────────────────────────
-        if (cmd === 'REG') {
-            if (!arg1) {
-                await reply(withFooter([
-                    `❌ *Missing Registration Number*`,
-                    ``,
-                    `📝 *How to register:*`,
-                    `Send: *REG IT26XXXXXX*`,
-                    ``,
-                    `Example: REG IT26101700`,
-                ].join('\n')));
-                return;
-            }
-            const { key, data } = lookupStudent(arg1);
-            if (!data) {
-                await reply(withFooter([
-                    `❌ *Student Not Found*`,
-                    ``,
-                    `🆔 Searched for: *${key}*`,
-                    ``,
-                    `Please double-check your IT number.`,
-                    `If the problem persists, contact admin.`,
-                    `📱 Support: 94772197530`,
-                ].join('\n')));
-                return;
-            }
-
-            const clash = Object.entries(db.registrations)
-                .find(([w, it]) => it === key && jidNum(w) !== jidNum(sid));
-            if (clash) {
-                await reply(withFooter([
-                    `⚠️ *Registration Conflict*`,
-                    ``,
-                    `*${key}* is already registered to a different WhatsApp number.`,
-                    `If this is your account, contact admin to fix it.`,
-                    `📱 Support: 94772197530`,
-                ].join('\n')));
-                return;
-            }
-
-            const alreadyRegistered = db.registrations[sid] === key;
-
-            db.registrations[sid] = key;
-            db.students[key] = { ...data, whatsapp: sid, registeredAt: nowISO() };
-            saveDB();
-
-            // Ask for group join confirmation instead of auto-adding
-            const groupPrompt = await askGroupJoinConfirmation(sid, data, key);
-
-            await reply(
-                withFooter(
-                    (alreadyRegistered ? `🔄 *Re-registered Successfully!*` : `🎉 *Registration Complete!*`) +
-                    `\n\n` + fmtStudent(key, data) + groupPrompt +
-                    `\n\n💡 Send *HELP* to see all available commands.`
-                )
-            );
-            return;
-        }
-
-        // ── INFO ──────────────────────────────────────────────────────────────
-        if (cmd === 'INFO') {
-            if (!arg1) {
-                await reply(withFooter([
-                    `❌ *Missing Student ID*`,
-                    ``,
-                    `📝 Usage: *INFO IT26XXXXXX*`,
-                    `Example:  INFO IT26101700`,
-                ].join('\n')));
-                return;
-            }
-            const { key, data } = lookupStudent(arg1);
-            if (!data) {
-                await reply(withFooter(`❌ *${key}* not found in the database.`));
-                return;
-            }
-            let txt = fmtStudent(key, data);
-            if (isAdmin(sid) && db.students[key]?.whatsapp) {
-                txt += `\n📱 *WhatsApp:* ${jidNum(db.students[key].whatsapp)}`;
-                txt += `\n🕒 *Registered:* ${db.students[key].registeredAt?.slice(0,10) || 'N/A'}`;
-                if (db.students[key].addedBy) txt += `\n🛡️  *Added By:*  ${db.students[key].addedBy}`;
-            }
-            await reply(withFooter(txt));
-            return;
-        }
-
-        // ── MYINFO ────────────────────────────────────────────────────────────
-        if (cmd === 'MYINFO') {
-            const reg = db.registrations[sid];
-            if (!reg) {
-                await reply(withFooter([
-                    `⚠️ *Not Registered Yet*`,
-                    ``,
-                    `To register, send:`,
-                    `*REG IT26XXXXXX*`,
-                    ``,
-                    `Replace IT26XXXXXX with your IT number.`,
-                ].join('\n')));
-                return;
-            }
-            const info = STUDENTS[reg];
-            if (!info) { await reply(withFooter(`❌ Student data error. Contact admin.`)); return; }
-            const slHour = new Date(Date.now() + 5.5 * 3600000).getUTCHours();
-            const timeGreet = slHour < 12 ? '🌅 Good morning' : slHour < 17 ? '☀️ Good afternoon' : '🌙 Good evening';
-            const firstName = info.name.split(' ')[0];
-            const regDate = db.students[reg]?.registeredAt?.slice(0,10) || 'N/A';
-            await reply(withFooter([
-                `${timeGreet}, *${firstName}!* 👋`,
-                ``,
-                fmtStudent(reg, info),
-                ``,
-                `📅 *Registered:* ${regDate}`,
-                ``,
-                `💡 Try: *TODAY* · *NEXT* · *CLASSMATES*`,
-            ].join('\n')));
-            return;
-        }
-
-        // ── MYGROUPS ──────────────────────────────────────────────────────────
-        if (cmd === 'MYGROUPS') {
-            const reg = db.registrations[sid];
-            if (!reg) {
-                await reply(withFooter(`⚠️ *Not Registered*\n\nSend *REG IT26XXXXXX* to register first.`));
-                return;
-            }
-            const s    = STUDENTS[reg];
-            if (!s) { await reply(withFooter(`❌ Student data error. Contact admin.`)); return; }
-            const pg   = s.project_group;
-            const slot = db.students[reg]?.wa_group_slot || pg;
-            const wg   = db.waGroups[slot];
-            const memberCount = wg ? registeredCountInSlot(slot) : 0;
-            const isWE = s.timetable_group.includes('WE');
-            await reply(withFooter([
-                `╔══════════════════════════╗`,
-                `  📊 *My Groups – ${reg}*`,
-                `╚══════════════════════════╝`,
-                ``,
-                `🗓️  *Schedule:*   ${isWE ? '🌅 Weekend' : '📆 Weekday'}`,
-                `📚 *TT Group:*   ${s.timetable_group}`,
-                `📌 *Sub-Group:*  ${s.sub_group}`,
-                `🔢 *Project:*    ${pg}`,
-                ``,
-                wg
-                    ? `🏘️  *WA Group:*   ${slot}\n👥 *Members:*   ${memberCount}/${MAX_STUDENTS_PER_GROUP}\n🔗 ${wg.inviteLink || '(link unavailable)'}`
-                    : `⚠️  *WA Group:*   Not created yet\nSend *REG ${reg}* to trigger creation`,
-            ].join('\n')));
             return;
         }
 
@@ -1596,9 +2946,14 @@ Format code blocks with backticks. Keep answers under 400 words.`;
                 `*BROADCAST <message>*`,
                 `  → Send message to ALL registered users`,
                 ``,
+                `*ADDDEADLINE <YYYY-MM-DD HH:MM> | <Title>*`,
+                `  → Add a deadline with auto-reminders (24h & 2h before)`,
+                `*RMDEADLINE <id>*`,
+                `  → Remove a deadline (send alone to list IDs)`,
+                ``,
                 `━━━━ 📊 *Info & Status* ━━━━`,
                 ``,
-                `*STATS*              → Bot statistics`,
+                `*BOTSTATS*           → Bot statistics`,
                 `*LISTADMINS*         → List all admins`,
                 `*LISTBANNED*         → List banned users`,
                 `*GROUPSTATUS*        → All WA group slots & member counts`,
@@ -1678,8 +3033,11 @@ Format code blocks with backticks. Keep answers under 400 words.`;
             if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
             if (!arg1) { await reply(withFooter(`❌ Usage: *LOOKUP 94XXXXXXXXX*`)); return; }
             const waNum = arg1.replace(/[^0-9]/g, '');
-            const jidTarget = toJid(waNum);
-            const reg = db.registrations[jidTarget];
+            // Search all registrations including LIDs
+            let reg = null;
+            for (const [j, id] of Object.entries(db.registrations)) {
+                if (jidNum(j) === waNum) { reg = id; break; }
+            }
             if (!reg) {
                 await reply(withFooter(`❌ No registration found for number *${waNum}*`));
                 return;
@@ -1696,7 +3054,7 @@ Format code blocks with backticks. Keep answers under 400 words.`;
         }
 
         // ── STATS ─────────────────────────────────────────────────────────────
-        if (cmd === 'STATS') {
+        if (cmd === 'BOTSTATS') {
             const slotCount = Object.keys(db.waGroups).length;
             const allPGs    = [...new Set(Object.values(STUDENTS).map(s => s.project_group))].length;
             const regCount  = Object.keys(db.registrations).length;
@@ -2074,6 +3432,76 @@ Format code blocks with backticks. Keep answers under 400 words.`;
             return;
         }
 
+        // ── ADDDEADLINE — admin creates a deadline with auto-reminders ───────────
+        if (cmd === 'ADDDEADLINE') {
+            if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
+            // Usage: ADDDEADLINE <YYYY-MM-DD HH:MM> | <Title>
+            const raw = rest;
+            const sepIdx = raw.indexOf('|');
+            if (sepIdx === -1) {
+                await reply(withFooter([
+                    `❌ *Usage:* *ADDDEADLINE <YYYY-MM-DD HH:MM> | <Title>*`,
+                    ``,
+                    `Example: *ADDDEADLINE 2026-06-20 23:59 | OOP Assignment 2 submission*`,
+                    ``,
+                    `Reminders are sent automatically 24h and 2h before, to all opted-in registered students.`,
+                ].join('\n')));
+                return;
+            }
+            const dateStr = raw.slice(0, sepIdx).trim();
+            const title = raw.slice(sepIdx + 1).trim();
+            const dueDate = new Date(dateStr.replace(' ', 'T') + ':00+05:30'); // Sri Lanka time
+            if (isNaN(dueDate.getTime()) || !title) {
+                await reply(withFooter('❌ Invalid date or missing title. Format: *ADDDEADLINE 2026-06-20 23:59 | Title*'));
+                return;
+            }
+            if (dueDate.getTime() <= Date.now()) {
+                await reply(withFooter('❌ That date is in the past. Use a future date/time.'));
+                return;
+            }
+            const deadline = {
+                id: 'dl_' + Date.now(),
+                title,
+                dueAt: dueDate.toISOString(),
+                createdBy: jidNum(sid),
+                createdAt: nowISO(),
+                notified24h: false,
+                notified2h: false,
+            };
+            db.deadlines.push(deadline);
+            saveDB();
+            const hoursAway = Math.round((dueDate.getTime() - Date.now()) / 3600000);
+            await reply(withFooter([
+                `✅ *Deadline Added!*`,
+                ``,
+                `📌 *${title}*`,
+                `📅 Due: ${dueDate.toDateString()} at ${dueDate.toTimeString().slice(0,5)}`,
+                `⏳ ${hoursAway < 24 ? hoursAway + 'h' : Math.floor(hoursAway/24) + ' days'} from now`,
+                ``,
+                `Students will be reminded automatically 24h and 2h before.`,
+                `_View with: *DEADLINES* | Remove with: *RMDEADLINE ${deadline.id}*_`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── RMDEADLINE — admin removes a deadline ─────────────────────────────────
+        if (cmd === 'RMDEADLINE') {
+            if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
+            if (!arg1) {
+                const lines = db.deadlines.map(d => `• ${d.id}  —  ${d.title}`);
+                await reply(withFooter(lines.length
+                    ? `📌 *Deadline IDs:*\n\n${lines.join('\n')}\n\nUsage: *RMDEADLINE <id>*`
+                    : 'No deadlines exist yet.'));
+                return;
+            }
+            const idx = db.deadlines.findIndex(d => d.id === arg1);
+            if (idx === -1) { await reply(withFooter(`❌ Deadline "${arg1}" not found. Send *RMDEADLINE* alone to list IDs.`)); return; }
+            const removed = db.deadlines.splice(idx, 1)[0];
+            saveDB();
+            await reply(withFooter(`✅ *Removed deadline:* ${removed.title}`));
+            return;
+        }
+
         // ── Unknown command ────────────────────────────────────────────────────
         if (parts.length === 1 && cmd.length < 20) {
             await reply(withFooter([
@@ -2087,6 +3515,55 @@ Format code blocks with backticks. Keep answers under 400 words.`;
         console.error(`❌ processMessage error: ${e.message}`, e.stack);
     }
 }
+
+// ─── DEADLINE REMINDER ENGINE ──────────────────────────────────────────────────
+// Checks every 5 minutes for deadlines crossing the 24h or 2h mark and notifies
+// all opted-in registered students via the existing low-priority broadcast queue.
+async function checkDeadlineReminders() {
+    if (!botReady || !db.deadlines || db.deadlines.length === 0) return;
+    const now = Date.now();
+    let dbChanged = false;
+
+    for (const d of db.deadlines) {
+        const dueAt = new Date(d.dueAt).getTime();
+        const hoursLeft = (dueAt - now) / 3600000;
+        if (hoursLeft < 0) continue; // already passed
+
+        let shouldNotify = null;
+        if (!d.notified24h && hoursLeft <= 24) { shouldNotify = '24h'; d.notified24h = true; }
+        else if (!d.notified2h && hoursLeft <= 2) { shouldNotify = '2h'; d.notified2h = true; }
+        if (!shouldNotify) continue;
+
+        dbChanged = true;
+        const due = new Date(d.dueAt);
+        const urgencyEmoji = shouldNotify === '2h' ? '🚨' : '⏰';
+        const text = withFooter([
+            `${urgencyEmoji} *Deadline Reminder*`,
+            ``,
+            `📌 *${d.title}*`,
+            `📅 Due: ${due.toDateString()} at ${due.toTimeString().slice(0,5)}`,
+            `⏳ *${shouldNotify === '2h' ? 'Only 2 hours left!' : '24 hours left'}*`,
+            ``,
+            shouldNotify === '2h'
+                ? `_Submit now if you haven't already!_`
+                : `_Plan your remaining time — try *STUDYPLAN* or a *POMODORO* session._`,
+        ].join('\n'));
+
+        const targets = Object.keys(db.registrations).filter(jid => db.deadlineSubs[jid] !== false);
+        console.log(`⏰ Sending ${shouldNotify} deadline reminder for "${d.title}" to ${targets.length} students`);
+        for (const t of targets) {
+            enqueueBroadcast(t, { text }).catch(() => {});
+        }
+    }
+
+    // Clean up deadlines that are >7 days past due to keep the list tidy
+    const before = db.deadlines.length;
+    db.deadlines = db.deadlines.filter(d => (now - new Date(d.dueAt).getTime()) < 7 * 24 * 3600000);
+    if (db.deadlines.length !== before) dbChanged = true;
+
+    if (dbChanged) saveDB();
+}
+setInterval(() => { checkDeadlineReminders().catch(e => console.error('Deadline reminder error:', e.message)); }, 5 * 60 * 1000);
 
 // ─── HEALTH WATCHDOG ─────────────────────────────────────────────────────────
 // Checks every 3 minutes if bot is stuck (connected but not processing).
@@ -2255,6 +3732,20 @@ async function startBot() {
                 if (code === 408) {
                     console.warn('⏱️  Connection timed out — reconnecting immediately');
                     setTimeout(startBot, 1000);
+                    return;
+                }
+
+                // 405 = method not allowed — usually a stale/incompatible protocol
+                // version or a corrupted session stuck rejecting reconnects.
+                // Clear auth after a few consecutive hits instead of looping forever.
+                if (code === 405) {
+                    reconnectAttempts++;
+                    console.warn(`🚫 405 rejection (attempt ${reconnectAttempts})`);
+                    if (reconnectAttempts >= 5) {
+                        clearAndRestart('Repeated 405s — likely stale session/version', 3000);
+                        return;
+                    }
+                    setTimeout(startBot, 3000);
                     return;
                 }
 
