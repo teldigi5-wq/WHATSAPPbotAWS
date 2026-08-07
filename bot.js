@@ -1,5 +1,5 @@
 const makeWASocket   = require('@whiskeysockets/baileys').default;
-const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, jidNormalizedUser } = require('@whiskeysockets/baileys');
+const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, jidNormalizedUser, downloadMediaMessage } = require('@whiskeysockets/baileys');
 const qrcode     = require('qrcode');
 const fs         = require('fs');
 const path       = require('path');
@@ -42,6 +42,47 @@ const AI_PROVIDERS = {
     mistral:{ name: 'Mistral Saba',   emoji: '⚡', call: async (q,s,h,mt) => callGroq('mistral-saba-24b', q, s, h, mt) },
     deepseek:{ name: 'DeepSeek R1',   emoji: '🔬', call: async (q,s,h,mt) => callGroq('deepseek-r1-distill-llama-70b', q, s, h, mt) }
 };
+
+// Voice note transcription via Groq Whisper — lets students just talk to the bot
+async function transcribeVoice(buffer) {
+    const key = process.env.GROQ_API_KEY || '';
+    if (!key) throw new Error('No Groq key');
+    const form = new FormData();
+    form.append('file', new Blob([buffer], { type: 'audio/ogg' }), 'voice.ogg');
+    form.append('model', 'whisper-large-v3-turbo');
+    const r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + key },
+        body: form,
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error.message || JSON.stringify(d.error));
+    return (d.text || '').trim();
+}
+
+// Image understanding via Groq's vision-capable Llama 4 Scout model
+async function analyzeImage(base64DataUrl, question) {
+    const key = process.env.GROQ_API_KEY || '';
+    if (!key) throw new Error('No Groq key');
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+        body: JSON.stringify({
+            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            max_tokens: 700,
+            messages: [{
+                role: 'user',
+                content: [
+                    { type: 'text', text: question || 'Explain what is shown in this image, in the context of a university student studying IT/Computer Science. Keep it clear and under 300 words.' },
+                    { type: 'image_url', image_url: { url: base64DataUrl } },
+                ],
+            }],
+        }),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error.message || JSON.stringify(d.error));
+    return d?.choices?.[0]?.message?.content || 'Could not analyze the image.';
+}
 const QUIZ_CATEGORY_MAP = {
     english: 'English grammar (fill in the blank, correct the sentence, or choose the right word)',
     grammar: 'English grammar rules and usage',
@@ -100,6 +141,10 @@ const KNOWN_COMMANDS = new Set([
     'BOTSTATS','ADMINHELP','ADDMEMBER','FORCEREG','RMEMBER','LOOKUP','GROUPSTATUS','CREATEALLGROUPS',
     'GROUPLINK','ADDTOGROUP','LISTADMINS','LISTBANNED','ADDADMIN','REMOVEADMIN','BAN','UNBAN','BROADCAST',
     'ADDDEADLINE','RMDEADLINE','DEADLINEBROADCAST',
+    'NOTES','SAVENOTE','DELNOTE',
+    'ATTEND','ATTENDANCE',
+    'ANALYTICS',
+    'SCHEDBROADCAST','LISTSCHED','CANCELSCHED',
 ]);
 function getAIProvider(jid) {
     const p = db.aiProvider && db.aiProvider[jid];
@@ -302,6 +347,10 @@ let db = {
     deadlineSubs:  {},   // jid → true  (opted in to personal deadline reminders, default true once registered)
     moodLog:       {},   // jid → [{ mood, at }]  (last ~10 kept)
     habits:        {},   // jid → { habitName: { streak, lastDoneDate } }
+    notes:              {},   // jid → [{ id, text, createdAt }]
+    usageStats:         { commands: {}, dailyActive: {} },
+    attendance:         {},   // date → slot → [regNo]
+    scheduledBroadcasts: [],  // [{ id, sendAt(ISO), message, by, sent }]
 };
 
 // ─── WEB SERVER ───────────────────────────────────────────────────────────────
@@ -466,6 +515,10 @@ function loadDB() {
             if (!db.deadlineSubs)  db.deadlineSubs  = {};
             if (!db.moodLog)       db.moodLog       = {};
             if (!db.habits)        db.habits        = {};
+            if (!db.notes)              db.notes              = {};   // jid → [{id, text, createdAt}]
+            if (!db.usageStats)         db.usageStats         = { commands: {}, dailyActive: {} };
+            if (!db.attendance)         db.attendance         = {};   // date → slot → [regNo]
+            if (!db.scheduledBroadcasts) db.scheduledBroadcasts = []; // [{id, sendAt, message, by, sent}]
             console.log(`📦 DB loaded — ${Object.keys(db.registrations).length} registrations, ${Object.keys(db.waGroups).length} WA groups`);
         }
     } catch(e) { console.error('DB load error:', e.message); }
@@ -478,6 +531,18 @@ function saveDB() {
         fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
         fs.renameSync(tmp, DB_PATH);
     } catch(e) { console.error('DB save error:', e.message); }
+}
+
+// Lightweight usage analytics — command counts + daily active users (last 30 days kept)
+function trackUsage(cmd, jid) {
+    try {
+        db.usageStats.commands[cmd] = (db.usageStats.commands[cmd] || 0) + 1;
+        const day = new Date(Date.now() + 5.5 * 3600000).toISOString().slice(0, 10); // SL date
+        if (!db.usageStats.dailyActive[day]) db.usageStats.dailyActive[day] = [];
+        if (!db.usageStats.dailyActive[day].includes(jid)) db.usageStats.dailyActive[day].push(jid);
+        const days = Object.keys(db.usageStats.dailyActive).sort();
+        while (days.length > 30) delete db.usageStats.dailyActive[days.shift()];
+    } catch(_) {}
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -1029,11 +1094,47 @@ async function handleMessage(rawMsg) {
             processedMsgIds.set(msgId, Date.now() + DEDUP_TTL);
         }
 
-        const body =
+        let body =
             msg.message?.conversation ||
             msg.message?.extendedTextMessage?.text ||
             msg.message?.buttonsResponseMessage?.selectedDisplayText ||
             msg.message?.listResponseMessage?.title || '';
+
+        // ── Voice notes: transcribe via Groq Whisper, route into the AI ask flow ──
+        if (!body && msg.message?.audioMessage && botReady && !isRateLimited(jid)) {
+            try {
+                const buffer = await downloadMediaMessage(msg, 'buffer', {});
+                const transcript = (await transcribeVoice(buffer)).trim();
+                const firstWord = transcript.split(/\s+/)[0]?.toUpperCase() || '';
+                body = KNOWN_COMMANDS.has(firstWord) ? transcript : `ASK ${transcript}`;
+                trackUsage('VOICE_NOTE', jid);
+            } catch (e) {
+                console.error('Voice transcribe failed:', e.message);
+                try { await directSend(jid, { text: withFooter("❌ Sorry, I couldn't understand that voice note — please try typing instead.") }); } catch(_) {}
+                return;
+            }
+        }
+
+        // ── Images: analyze directly via vision model (bypasses text commands) ──
+        if (!body && msg.message?.imageMessage && botReady && !isRateLimited(jid)) {
+            touchActivity();
+            enqueueForUser(jid, async () => {
+                try {
+                    const buffer = await downloadMediaMessage(msg, 'buffer', {});
+                    const mime = msg.message.imageMessage.mimetype || 'image/jpeg';
+                    const b64 = `data:${mime};base64,${buffer.toString('base64')}`;
+                    const caption = (msg.message.imageMessage.caption || '').trim();
+                    trackUsage('IMAGE_ANALYZE', jid);
+                    await directSend(jid, { text: withFooter('🔎 *Analyzing your image...*') });
+                    const answer = await analyzeImage(b64, caption);
+                    await directSend(jid, { text: withFooter(`🖼️ *Image Analysis*\n\n${answer}`) });
+                } catch (e) {
+                    console.error('Image analysis failed:', e.message);
+                    try { await directSend(jid, { text: withFooter("❌ Sorry, I couldn't analyze that image — please try again.") }); } catch(_) {}
+                }
+            });
+            return;
+        }
 
         if (!body || !body.trim()) return;
         const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
@@ -1084,6 +1185,7 @@ async function processMessage(jid, msg, body) {
         const rest  = parts.slice(1).join(' ');
 
         console.log(`📨 ${jidNum(jid)} → ${body.trim().slice(0, 80)}`);
+        trackUsage(cmd, sid);
 
         if (isBanned(sid)) { console.log(`🚫 Banned user: ${jidNum(sid)}`); return; }
 
@@ -2021,6 +2123,74 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
             return;
         }
 
+        // ── NOTES: personal scratchpad ────────────────────────────────────────
+        if (cmd === 'SAVENOTE') {
+            if (!rest) { await reply(withFooter('❌ Usage: *SAVENOTE <your text>*\nExample: SAVENOTE Midterm covers chapters 1-4')); return; }
+            if (!db.notes[sid]) db.notes[sid] = [];
+            const note = { id: Date.now().toString(36), text: rest, createdAt: nowISO() };
+            db.notes[sid].push(note);
+            if (db.notes[sid].length > 50) db.notes[sid].shift(); // cap per-user
+            saveDB();
+            await reply(withFooter(`📝 *Note saved!* (id: ${note.id})\n\nSend *NOTES* to view all, *DELNOTE ${note.id}* to delete.`));
+            return;
+        }
+        if (cmd === 'NOTES') {
+            const list = db.notes[sid] || [];
+            if (!list.length) { await reply(withFooter('📭 *No notes yet.*\n\nSave one: *SAVENOTE <text>*')); return; }
+            const out = list.map(n => `• [${n.id}] ${n.text}`).join('\n');
+            await reply(withFooter(`📝 *Your Notes* (${list.length})\n\n${out}\n\n_Delete one: DELNOTE <id>_`));
+            return;
+        }
+        if (cmd === 'DELNOTE') {
+            if (!arg1) { await reply(withFooter('❌ Usage: *DELNOTE <id>* — get the id from *NOTES*')); return; }
+            const list = db.notes[sid] || [];
+            const before = list.length;
+            db.notes[sid] = list.filter(n => n.id !== arg1);
+            saveDB();
+            await reply(withFooter(before !== db.notes[sid].length ? '🗑️ *Note deleted.*' : '❌ Note not found. Check the id with *NOTES*.'));
+            return;
+        }
+
+        // ── ATTEND: student check-in for their class group ──────────────────────
+        if (cmd === 'ATTEND') {
+            const reg = db.registrations[sid];
+            if (!reg) { await reply(withFooter('⚠️ *Not Registered*\n\nSend *REG IT26XXXXXX* to register first.')); return; }
+            const pg   = STUDENTS[reg]?.project_group;
+            const slot = db.students[reg]?.wa_group_slot || pg;
+            if (!slot) { await reply(withFooter('⚠️ Could not determine your class group.')); return; }
+            const today = new Date(Date.now() + 5.5 * 3600000).toISOString().slice(0, 10);
+            if (!db.attendance[today]) db.attendance[today] = {};
+            if (!db.attendance[today][slot]) db.attendance[today][slot] = [];
+            if (db.attendance[today][slot].includes(reg)) {
+                await reply(withFooter(`✅ You already checked in for *${slot}* today.`));
+                return;
+            }
+            db.attendance[today][slot].push(reg);
+            saveDB();
+            await reply(withFooter(`✅ *Attendance marked!*\n\n👤 ${reg}\n🏘️ Group: ${slot}\n📅 ${today}`));
+            return;
+        }
+        // ── ATTENDANCE: admin view of check-ins ──────────────────────────────────
+        if (cmd === 'ATTENDANCE') {
+            if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
+            const today = new Date(Date.now() + 5.5 * 3600000).toISOString().slice(0, 10);
+            const day = arg1 && /^\d{4}-\d{2}-\d{2}$/.test(arg1) ? arg1 : today;
+            const dayData = db.attendance[day] || {};
+            const slots = Object.keys(dayData).sort();
+            if (!slots.length) { await reply(withFooter(`📭 No attendance recorded for *${day}*.`)); return; }
+            const lines = slots.map(s => `🏘️ *${s}*: ${dayData[s].length} checked in\n   ${dayData[s].join(', ')}`);
+            await reply(withFooter([
+                `╔══════════════════════════╗`,
+                `  📋 *Attendance — ${day}*`,
+                `╚══════════════════════════╝`,
+                ``,
+                ...lines,
+                ``,
+                `_View another day: ATTENDANCE YYYY-MM-DD_`,
+            ].join('\n')));
+            return;
+        }
+
         // ── YES/NO: Group join confirmation ────────────────────────────────────
         if (cmd === 'YES' || cmd === 'NO' || cmd === 'Y' || cmd === 'N') {
             const pending = pendingGroupConfirm.get(sid);
@@ -2095,6 +2265,8 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                     `  e.g. SLIDES Intro to OOP`,
                     `*VIDEO <topic>*        🎬 Find tutorials`,
                     `  e.g. VIDEO database normalization`,
+                    `📸 *Send a photo* — I'll explain what's in it!`,
+                    `🎙️ *Send a voice note* — I'll transcribe & answer!`,
                 ]},
                 QUIZ: { emoji: '🎯', title: 'Quiz & Practice', lines: [
                     `*QUIZ*            🎯 Random quiz question`,
@@ -2132,6 +2304,10 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                     `*GOALS*              🎯 Daily habit tracker`,
                     `*GOALS ADD <name>*   ➕ Add a new habit`,
                     `*GOALS DONE <name>*  ✅ Check off today`,
+                    `*SAVENOTE <text>*    📝 Save a quick note`,
+                    `*NOTES*              📝 View your saved notes`,
+                    `*DELNOTE <id>*       🗑️ Delete a note`,
+                    `*ATTEND*             ✅ Check in to your class`,
                 ]},
                 WELLBEING: { emoji: '💚', title: 'Deadlines & Wellbeing', lines: [
                     `*DEADLINES*      📌 Upcoming assignments/exams`,
@@ -2946,6 +3122,11 @@ Keep bullets under 8 words each. Make it professional.`;
                 `*BROADCAST <message>*`,
                 `  → Send message to ALL registered users`,
                 ``,
+                `*SCHEDBROADCAST <YYYY-MM-DD HH:MM> | <message>*`,
+                `  → Schedule a broadcast for later`,
+                `*LISTSCHED*   → View pending scheduled broadcasts`,
+                `*CANCELSCHED <id>* → Cancel a scheduled broadcast`,
+                ``,
                 `*ADDDEADLINE <YYYY-MM-DD HH:MM> | <Title>*`,
                 `  → Add a deadline with auto-reminders (24h & 2h before)`,
                 `*RMDEADLINE <id>*`,
@@ -2954,6 +3135,8 @@ Keep bullets under 8 words each. Make it professional.`;
                 `━━━━ 📊 *Info & Status* ━━━━`,
                 ``,
                 `*BOTSTATS*           → Bot statistics`,
+                `*ANALYTICS*          → Usage stats & daily active users`,
+                `*ATTENDANCE [date]*  → View class check-ins (default: today)`,
                 `*LISTADMINS*         → List all admins`,
                 `*LISTBANNED*         → List banned users`,
                 `*GROUPSTATUS*        → All WA group slots & member counts`,
@@ -3108,6 +3291,39 @@ Keep bullets under 8 words each. Make it professional.`;
                 `📅 *TT Groups:*        ${Object.keys(TIMETABLE).length}`,
                 `💾 *Data path:*        ${DATA_PATH}`,
                 `📬 *Broadcast queue:*  ${broadcastQueue.length} pending`,
+            ].join('\n')));
+            return;
+        }
+
+        // ── ANALYTICS ─────────────────────────────────────────────────────────
+        if (cmd === 'ANALYTICS') {
+            if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
+            const commandCounts = db.usageStats.commands || {};
+            const top = Object.entries(commandCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 12)
+                .map(([c, n], i) => `${i + 1}. ${c} — ${n}`)
+                .join('\n') || 'No usage data yet.';
+            const totalCommands = Object.values(commandCounts).reduce((a, b) => a + b, 0);
+            const dailyActive = db.usageStats.dailyActive || {};
+            const today = new Date(Date.now() + 5.5 * 3600000).toISOString().slice(0, 10);
+            const dauToday = (dailyActive[today] || []).length;
+            const days = Object.keys(dailyActive).sort();
+            const last7 = days.slice(-7);
+            const dauLine = last7.map(d => `${d.slice(5)}: ${dailyActive[d].length}`).join('  |  ') || 'No data yet';
+            await reply(withFooter([
+                `╔══════════════════════════╗`,
+                `  📊 *Bot Analytics*`,
+                `╚══════════════════════════╝`,
+                ``,
+                `👥 *Active today:*     ${dauToday}`,
+                `📨 *Total commands:*   ${totalCommands}`,
+                ``,
+                `🔥 *Top commands:*`,
+                top,
+                ``,
+                `📅 *Daily active (last 7 days):*`,
+                dauLine,
             ].join('\n')));
             return;
         }
@@ -3432,6 +3648,72 @@ Keep bullets under 8 words each. Make it professional.`;
             return;
         }
 
+        // ── SCHEDBROADCAST — schedule a broadcast for a future date/time ────────
+        if (cmd === 'SCHEDBROADCAST') {
+            if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
+            const raw = rest;
+            const sepIdx = raw.indexOf('|');
+            if (sepIdx === -1) {
+                await reply(withFooter([
+                    `❌ *Usage:* *SCHEDBROADCAST <YYYY-MM-DD HH:MM> | <message>*`,
+                    ``,
+                    `Example: *SCHEDBROADCAST 2026-08-10 08:00 | Reminder: Midterm exam today at 2pm*`,
+                    ``,
+                    `See pending: *LISTSCHED* — Cancel: *CANCELSCHED <id>*`,
+                ].join('\n')));
+                return;
+            }
+            const dateStr = raw.slice(0, sepIdx).trim();
+            const message = raw.slice(sepIdx + 1).trim();
+            const sendAt = new Date(dateStr.replace(' ', 'T') + ':00+05:30');
+            if (isNaN(sendAt.getTime()) || !message) {
+                await reply(withFooter('❌ Invalid date or missing message. Format: *SCHEDBROADCAST 2026-08-10 08:00 | message*'));
+                return;
+            }
+            if (sendAt.getTime() <= Date.now()) {
+                await reply(withFooter('❌ That date/time is in the past. Use a future date/time.'));
+                return;
+            }
+            const job = {
+                id: 'sb_' + Date.now(),
+                sendAt: sendAt.toISOString(),
+                message,
+                by: jidNum(sid),
+                sent: false,
+            };
+            db.scheduledBroadcasts.push(job);
+            saveDB();
+            await reply(withFooter([
+                `✅ *Broadcast Scheduled!*`,
+                ``,
+                `🆔 ${job.id}`,
+                `📅 ${sendAt.toDateString()} at ${sendAt.toTimeString().slice(0,5)} (SL time)`,
+                `💬 ${message}`,
+                ``,
+                `_Cancel anytime with: CANCELSCHED ${job.id}_`,
+            ].join('\n')));
+            return;
+        }
+        if (cmd === 'LISTSCHED') {
+            if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
+            const pending = db.scheduledBroadcasts.filter(j => !j.sent);
+            if (!pending.length) { await reply(withFooter('📭 No scheduled broadcasts pending.')); return; }
+            const lines = pending
+                .sort((a, b) => new Date(a.sendAt) - new Date(b.sendAt))
+                .map(j => `🆔 ${j.id}\n📅 ${new Date(j.sendAt).toDateString()} ${new Date(j.sendAt).toTimeString().slice(0,5)}\n💬 ${j.message}`);
+            await reply(withFooter(`📋 *Scheduled Broadcasts*\n\n${lines.join('\n\n')}`));
+            return;
+        }
+        if (cmd === 'CANCELSCHED') {
+            if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
+            if (!arg1) { await reply(withFooter('❌ Usage: *CANCELSCHED <id>* — get the id from *LISTSCHED*')); return; }
+            const before = db.scheduledBroadcasts.length;
+            db.scheduledBroadcasts = db.scheduledBroadcasts.filter(j => j.id !== arg1);
+            saveDB();
+            await reply(withFooter(before !== db.scheduledBroadcasts.length ? '🗑️ *Scheduled broadcast cancelled.*' : '❌ Not found. Check the id with *LISTSCHED*.'));
+            return;
+        }
+
         // ── ADDDEADLINE — admin creates a deadline with auto-reminders ───────────
         if (cmd === 'ADDDEADLINE') {
             if (!isAdmin(sid)) { await reply(withFooter('❌ *Not Authorized*')); return; }
@@ -3564,6 +3846,40 @@ async function checkDeadlineReminders() {
     if (dbChanged) saveDB();
 }
 setInterval(() => { checkDeadlineReminders().catch(e => console.error('Deadline reminder error:', e.message)); }, 5 * 60 * 1000);
+
+// ─── SCHEDULED BROADCAST DISPATCHER ─────────────────────────────────────────────
+// Checks every 2 minutes for pending SCHEDBROADCAST jobs whose time has arrived.
+async function checkScheduledBroadcasts() {
+    if (!botReady || !db.scheduledBroadcasts || db.scheduledBroadcasts.length === 0) return;
+    const now = Date.now();
+    let dbChanged = false;
+
+    for (const job of db.scheduledBroadcasts) {
+        if (job.sent) continue;
+        if (new Date(job.sendAt).getTime() > now) continue;
+
+        job.sent = true; // mark first to avoid double-send if this tick is slow
+        dbChanged = true;
+        const targets = Object.keys(db.registrations);
+        const text = withFooter(`📢 *Announcement*\n\n${job.message}`);
+        let sent = 0, failed = 0;
+        for (const t of targets) {
+            await enqueueBroadcast(t, { text }).then(() => sent++).catch(() => failed++);
+        }
+        db.broadcasts.push({ message: job.message, by: job.by, at: nowISO(), sent, failed, scheduled: true });
+        try {
+            await directSend(job.by, { text: withFooter(`✅ *Scheduled Broadcast Sent*\n🆔 ${job.id}\n✔️ Sent: ${sent}\n❌ Failed: ${failed}`) });
+        } catch(_) {}
+    }
+
+    // Clean up sent jobs older than 7 days to keep the list tidy
+    const before = db.scheduledBroadcasts.length;
+    db.scheduledBroadcasts = db.scheduledBroadcasts.filter(j => !j.sent || (now - new Date(j.sendAt).getTime()) < 7 * 24 * 3600000);
+    if (db.scheduledBroadcasts.length !== before) dbChanged = true;
+
+    if (dbChanged) saveDB();
+}
+setInterval(() => { checkScheduledBroadcasts().catch(e => console.error('Scheduled broadcast error:', e.message)); }, 2 * 60 * 1000);
 
 // ─── HEALTH WATCHDOG ─────────────────────────────────────────────────────────
 // Checks every 3 minutes if bot is stuck (connected but not processing).
