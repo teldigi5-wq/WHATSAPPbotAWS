@@ -1,91 +1,213 @@
-# SLIIT WhatsApp Bot — AWS EC2 Deployment
+<div align="center">
 
-## File Structure
+# 💬 SLIIT WhatsApp Bot — AWS Edition
 
+### Cloud-hosted student assistant with WhatsApp, Node.js, PM2 and automated EC2 deployment
+
+![Node.js](https://img.shields.io/badge/Node.js-20+-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-EC2-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white)
+![PM2](https://img.shields.io/badge/PM2-Process_Manager-2B037A?style=for-the-badge&logo=pm2&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-Auto_Deploy-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+
+**A deployment-focused WhatsApp automation project built to run continuously on AWS EC2.**
+
+</div>
+
+---
+
+## 🎯 Project goal
+
+This repository packages a WhatsApp student-assistant bot for reliable cloud deployment rather than local-only execution.
+
+The project focuses on the engineering around the bot itself: **process supervision, persistent session data, EC2 setup, restart behavior and automated deployment from GitHub**.
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart LR
+    U[WhatsApp User] --> W[WhatsApp / Linked Device]
+    W --> B[Node.js Bot]
+    B --> S[Student + Timetable Data]
+    B --> D[(Persistent /data storage)]
+    P[PM2] --> B
+    G[GitHub Push] --> A[GitHub Actions]
+    A --> E[AWS EC2]
+    E --> P
 ```
+
+```text
+GitHub repository
+      ↓
+GitHub Actions deployment
+      ↓
+AWS EC2
+      ↓
+PM2 process manager
+      ↓
+Node.js WhatsApp bot
+      ↓
+Persistent session/data storage
+```
+
+---
+
+## ⚡ Engineering highlights
+
+- AWS EC2 deployment workflow
+- PM2 process supervision and reboot persistence
+- GitHub Actions deployment automation
+- Persistent WhatsApp session storage outside the source tree
+- Student and timetable data integration
+- Browser-accessible QR linking flow
+- Separation between application code and server-specific deployment configuration
+- `.gitignore`-based protection for local/runtime data
+
+---
+
+## 📁 Repository structure
+
+```text
 whatsapp-bot/
-├── bot.js                          ← Main bot (unchanged from Railway)
-├── students.json                   ← Student data
-├── timetable.json                  ← Timetable data
-├── package.json                    ← Node dependencies (added engines field)
-├── ecosystem.config.js             ← PM2 config (replaces railway.toml)
-├── setup.sh                        ← One-shot EC2 setup script
+├── bot.js
+├── students.json
+├── timetable.json
+├── package.json
+├── ecosystem.config.js
+├── setup.sh
 ├── .gitignore
 └── .github/
     └── workflows/
-        └── deploy.yml              ← GitHub Actions auto-deploy on git push
+        └── deploy.yml
 ```
 
-## Quick Start
+| File | Purpose |
+|---|---|
+| `bot.js` | Main WhatsApp bot runtime |
+| `students.json` | Student information used by the bot |
+| `timetable.json` | Timetable data source |
+| `ecosystem.config.js` | PM2 application configuration |
+| `setup.sh` | EC2 bootstrap/setup script |
+| `.github/workflows/deploy.yml` | Deployment automation |
 
-### 1. Edit setup.sh
-Replace `YOUR_USERNAME/YOUR_REPO` with your actual GitHub repo URL.
+---
 
-### 2. Launch EC2 Instance (AWS Console)
-- **AMI:** Amazon Linux 2023
-- **Instance type:** t3.micro (free tier) or t3.small
-- **Security Group inbound rules:**
-  - Port 22 (SSH) — Your IP
-  - Port 8080 (HTTP) — 0.0.0.0/0
-- **Elastic IP:** Assign one so your IP never changes
+## 🚀 Deployment
 
-### 3. SSH into your server
+### 1. Prepare the EC2 instance
+
+Recommended baseline:
+
+- Amazon Linux 2023
+- `t3.micro` or larger depending on workload
+- SSH access restricted to your own trusted IP where possible
+- Application port opened only when required
+
+### 2. Clone the repository
+
 ```bash
-ssh -i your-key.pem ec2-user@<your-elastic-ip>
+git clone https://github.com/teldigi5-wq/WHATSAPPbotAWS.git
+cd WHATSAPPbotAWS
 ```
 
-### 4. Run the setup script
+### 3. Run the setup script
+
 ```bash
-# Upload setup.sh or clone the repo first, then:
 chmod +x setup.sh
 ./setup.sh
 ```
 
-### 5. Enable PM2 auto-start on reboot
+### 4. Enable PM2 startup persistence
+
 ```bash
 pm2 startup
-# Copy and run the command it prints, then:
 pm2 save
 ```
 
-### 6. Scan the QR Code
-Open in your browser:
-```
-http://<your-elastic-ip>:8080
-```
-Scan with WhatsApp → Linked Devices → Link a Device.
+Follow the command printed by `pm2 startup` when required.
+
+### 5. Link WhatsApp
+
+Open the configured bot web endpoint in a browser and scan the generated QR code using:
+
+**WhatsApp → Linked Devices → Link a Device**
 
 ---
 
-## GitHub Actions Auto-Deploy
+## 🔁 Continuous deployment
 
-Every `git push` to `main` automatically deploys to EC2.
+The repository includes a GitHub Actions workflow for deployment after updates to the main branch.
 
-### Add these secrets in GitHub → Settings → Secrets → Actions:
+Required repository secrets depend on the workflow configuration and may include values such as:
 
-| Secret | Value |
-|--------|-------|
-| `EC2_HOST` | Your Elastic IP address |
-| `EC2_KEY` | Full contents of your `.pem` file |
+| Secret | Purpose |
+|---|---|
+| `EC2_HOST` | Target EC2 host/IP |
+| `EC2_KEY` | SSH private key used by the deployment workflow |
+
+> Never commit SSH keys, WhatsApp authentication data, tokens or other secrets to the repository.
 
 ---
 
-## Useful PM2 Commands
+## 🧰 PM2 operations
 
 ```bash
-pm2 status                    # See if bot is running
-pm2 logs whatsapp-bot         # Live logs
-pm2 restart whatsapp-bot      # Restart bot
-pm2 stop whatsapp-bot         # Stop bot
-pm2 delete whatsapp-bot       # Remove from PM2
+pm2 status
+pm2 logs whatsapp-bot
+pm2 restart whatsapp-bot
+pm2 stop whatsapp-bot
 ```
+
+PM2 keeps the Node.js process supervised and can restore the application after a server reboot when startup persistence is configured correctly.
 
 ---
 
-## Data Storage
+## 💾 Persistent data
 
-The bot stores WhatsApp session + database in `/data` on your EC2 instance.
-This directory survives reboots and redeploys automatically.
+Runtime state is designed to live outside the normal deployment source directory.
 
-> **Note:** `bot.js` is completely unchanged from Railway — it auto-detects `/data` 
-> as the storage path via `resolveDataPath()`. No code changes needed.
+```text
+/data
+```
+
+This prevents a normal code deployment from wiping the linked-device session or other runtime data.
+
+**Do not publish or commit authentication/session files.** Treat WhatsApp session data like a credential.
+
+---
+
+## 🧠 What this project demonstrates
+
+From an engineering portfolio perspective, this project is less about a single chat command and more about operating a small service reliably:
+
+- deploying Node.js applications to Linux servers
+- managing long-running processes
+- handling persistent runtime state
+- separating secrets from source code
+- automating deployments
+- debugging server-side application lifecycle issues
+
+These are the same foundations used in larger backend and platform systems.
+
+---
+
+## 🔭 Possible next improvements
+
+- containerized deployment
+- structured logging
+- health-check endpoint
+- automated smoke tests after deployment
+- environment validation on startup
+- deployment rollback strategy
+- metrics and uptime monitoring
+
+---
+
+<div align="center">
+
+### Build locally. Operate reliably in the cloud.
+
+**Poojana Kaveesh Sellahewa**
+
+</div>
