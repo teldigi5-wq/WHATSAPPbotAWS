@@ -8,6 +8,7 @@
 ![AWS](https://img.shields.io/badge/AWS-EC2-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white)
 ![PM2](https://img.shields.io/badge/PM2-Process_Manager-2B037A?style=for-the-badge&logo=pm2&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-Auto_Deploy-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+[![CI](https://github.com/teldigi5-wq/WHATSAPPbotAWS/actions/workflows/ci.yml/badge.svg)](https://github.com/teldigi5-wq/WHATSAPPbotAWS/actions/workflows/ci.yml)
 
 **A deployment-focused WhatsApp automation project built to run continuously on AWS EC2.**
 
@@ -79,6 +80,7 @@ whatsapp-bot/
 ├── .gitignore
 └── .github/
     └── workflows/
+        ├── ci.yml
         └── deploy.yml
 ```
 
@@ -89,7 +91,24 @@ whatsapp-bot/
 | `timetable.json` | Timetable data source |
 | `ecosystem.config.js` | PM2 application configuration |
 | `setup.sh` | EC2 bootstrap/setup script |
+| `.github/workflows/ci.yml` | Automated repository validation |
 | `.github/workflows/deploy.yml` | Deployment automation |
+
+---
+
+## ✅ Automated validation
+
+The repository includes a GitHub Actions CI workflow that runs on pushes and pull requests to `main`.
+
+It verifies:
+
+- clean dependency installation with `npm ci`
+- JavaScript syntax for the bot and PM2 configuration
+- JSON validity for student and timetable data
+- shell syntax for the EC2 setup script
+- presence of required runtime and deployment files
+
+This keeps code validation separate from production deployment so changes can be checked before they reach an EC2 environment.
 
 ---
 
@@ -186,6 +205,7 @@ From an engineering portfolio perspective, this project is less about a single c
 - handling persistent runtime state
 - separating secrets from source code
 - automating deployments
+- validating changes in CI before deployment
 - debugging server-side application lifecycle issues
 
 These are the same foundations used in larger backend and platform systems.
@@ -206,7 +226,7 @@ These are the same foundations used in larger backend and platform systems.
 
 <div align="center">
 
-### Build locally. Operate reliably in the cloud.
+### Build locally. Validate automatically. Operate reliably in the cloud.
 
 **Poojana Kaveesh Sellahewa**
 
