@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: whatsappbotaws-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Node.js service
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check bot.js
+          node --check ecosystem.config.js
+
+      - name: Validate JSON data files
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('students.json','utf8')); console.log('students.json valid')"
+          node -e "JSON.parse(require('fs').readFileSync('timetable.json','utf8')); console.log('timetable.json valid')"
+
+      - name: Validate setup script syntax
+        run: bash -n setup.sh
+
+      - name: Verify required project files
+        run: |
+          test -f bot.js
+          test -f package.json
+          test -f package-lock.json
+          test -f ecosystem.config.js
+          test -f setup.sh
