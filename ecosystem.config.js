@@ -23,7 +23,11 @@ module.exports = {
         // /data must be your mounted EBS volume (or the root EBS if no separate volume).
         DATA_PATH: '/data',
         // Your WhatsApp number in international format (no + or spaces)
-        SUPER_ADMIN: '94772197530',
+        SUPER_ADMIN: process.env.SUPER_ADMIN || '',
+        SUPER_ADMIN_LIDS: process.env.SUPER_ADMIN_LIDS || '',
+        BOT_SETUP_USER: process.env.BOT_SETUP_USER || '',
+        BOT_SETUP_PASSWORD: process.env.BOT_SETUP_PASSWORD || '',
+        WHATSAPP_PAIR_PHONE: process.env.WHATSAPP_PAIR_PHONE || '',
       },
 
       // PM2 log files — viewable with: pm2 logs whatsapp-bot
