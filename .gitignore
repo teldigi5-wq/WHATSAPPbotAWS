@@ -19,3 +19,10 @@ nixpacks.toml
 *.pem
 *.backup*
 ecosystem_config.js
+
+# Private roster and configuration (provision on server outside Git)
+/students.json
+/eac-groups.json
+.env
+.env.*
+!.env.example

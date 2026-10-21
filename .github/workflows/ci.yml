@@ -40,8 +40,10 @@ jobs:
 
       - name: Validate JSON data files
         run: |
-          node -e "JSON.parse(require('fs').readFileSync('students.json','utf8')); console.log('students.json valid')"
+          test ! -e students.json
+          test ! -e eac-groups.json
           node -e "JSON.parse(require('fs').readFileSync('timetable.json','utf8')); console.log('timetable.json valid')"
+          node --test tests/*.test.js
 
       - name: Validate setup script syntax
         run: bash -n setup.sh

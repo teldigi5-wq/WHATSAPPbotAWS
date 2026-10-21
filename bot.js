@@ -13,8 +13,9 @@ process.on('unhandledRejection', e => console.error('💥 unhandledRejection:', 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 const PORT        = process.env.PORT || 8080;
 // Your number — plain digits, no @s.whatsapp.net
-const SUPER_ADMIN = process.env.SUPER_ADMIN || '94772197530';
-const SUPER_ADMIN_LIDS = ['20985227042855'];
+const SUPER_ADMIN = process.env.SUPER_ADMIN || '';
+const SUPER_ADMIN_LIDS = (process.env.SUPER_ADMIN_LIDS || '').split(',').map(s => s.trim()).filter(Boolean);
+const { createSetupGuard, createPairLimiter } = require('./security/setup-access');
 
 
 async function callGroq(model, question, sys, history, maxTokens) {
@@ -157,17 +158,28 @@ const BOT_FOOTER = [
     ``,
     `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     `🤖 *Created by Poojana Kaveesh*`,
-    `🆔 IT26101524  |  📱 94772197530`,
+    `Student services • private support channel`,
 ].join('\n');
 
 // ─── LOAD STUDENTS DATA ───────────────────────────────────────────────────────
-let STUDENTS = {};
-try {
-    STUDENTS = require('./students.json');
-    console.log(`📚 Students loaded: ${Object.keys(STUDENTS).length}`);
-} catch(e) {
-    console.error('❌ students.json not found:', e.message);
+const PRIVATE_ROSTER_DIR = path.resolve(process.env.PRIVATE_ROSTER_DIR || process.env.DATA_PATH || '/data');
+function loadPrivateRoster(file) {
+    const location = path.join(PRIVATE_ROSTER_DIR, file);
+    try {
+        const stat = fs.statSync(location);
+        if (!stat.isFile() || (process.platform !== 'win32' && (stat.mode & 0o077))) {
+            throw new Error('Private roster must be a non-shared file (chmod 0600).');
+        }
+        const roster = JSON.parse(fs.readFileSync(location, 'utf8'));
+        if (!roster || typeof roster !== 'object' || Array.isArray(roster)) throw new Error('Invalid roster format');
+        console.log('Private roster loaded: ' + file + ' (' + Object.keys(roster).length + ' entries)');
+        return roster;
+    } catch (error) {
+        console.error('Private roster unavailable: ' + file + '. Provision before release (' + error.message + ')');
+        return Object.create(null);
+    }
 }
+const STUDENTS = loadPrivateRoster('students.json');
 
 // ─── LOAD TIMETABLE DATA ──────────────────────────────────────────────────────
 let TIMETABLE = {};
@@ -201,7 +213,7 @@ const quizSessions = new Map(); // jid → { question, answer, category, asked, 
 const pomodoroTimers = new Map(); // jid → { workTimeout, breakTimeout }
 
 // ─── EAC GROUPING DATA (English for Academic Communication) ─────────────────
-const EAC_GROUPS = {"IT25101376":"01A","IT26101585":"01A","IT26100489":"01A","IT26102176":"01A","IT26101615":"01A","IT26101987":"01A","IT26101590":"01A","IT26102097":"01A","IT26102008":"01A","IT26101409":"01A","IT26101393":"01A","IT26101328":"01A","IT26102047":"01A","IT26101657":"01A","IT26101358":"01A","IT26102042":"01A","IT26101614":"01A","IT26101675":"01A","IT26101571":"01A","IT26101737":"01A","IT26101238":"01A","IT26101610":"01A","IT26101602":"01A","IT26101600":"01A","IT26101204":"01A","IT26101744":"01A","IT26101467":"01A","IT26101576":"01A","IT26101805":"01A","IT26101797":"01A","IT26100013":"01A","IT26101901":"01B","IT26101607":"01B","IT26101332":"01B","IT26101985":"01B","IT26102103":"01B","IT26300138":"01B","IT26101228":"01B","IT26101260":"01B","IT26101579":"01B","IT26101284":"01B","IT26101331":"01B","IT26101673":"01B","IT26101992":"01B","IT26102059":"01B","IT26101620":"01B","IT26102002":"01B","IT26101235":"01B","IT26101241":"01B","IT26101629":"01B","IT26200849":"01B","IT26102055":"01B","IT26101893":"01B","IT26101444":"01B","IT26102037":"01B","IT26102018":"01B","IT26101384":"01B","IT26102004":"01B","IT26101589":"01B","IT26101455":"01B","IT26101880":"01B","IT26101333":"01C","IT26101700":"01C","IT26102045":"01C","IT26100956":"01C","IT26101323":"01C","IT26102105":"01C","IT26101691":"01C","IT26101262":"01C","IT26101316":"01C","IT26100944":"01C","IT26101626":"01C","IT26101236":"01C","IT26101237":"01C","IT26101983":"01C","IT26101674":"01C","IT26101688":"01C","IT26101443":"01C","IT26101678":"01C","IT26102031":"01C","IT26100212":"01C","IT26101448":"01C","IT26101651":"01C","IT26101245":"01C","IT26101704":"01C","IT26101990":"01C","IT26101259":"01C","IT26101611":"01C","IT26101642":"01C","IT26101244":"01D","IT26101888":"01D","IT26101129":"01D","IT26101643":"01D","IT26101210":"01D","IT26102104":"01D","IT26101507":"01D","IT26101266":"01D","IT26102041":"01D","IT26101682":"01D","IT26101597":"01D","IT26101672":"01D","IT26102102":"01D","IT26101680":"01D","IT26101697":"01D","IT26101291":"01D","IT26101242":"01D","IT26101454":"01D","IT26101738":"01D","IT26101632":"01D","IT26101997":"01D","IT26101972":"01D","IT26100573":"01D","IT26101367":"02A","IT26101382":"02A","IT26101318":"02A","IT26102144":"02A","IT26101742":"02A","IT26101363":"02A","IT26101512":"02A","IT26101898":"02A","IT26101530":"02A","IT26101522":"02A","IT26101484":"02A","IT26101892":"02A","IT26101735":"02A","IT26101912":"02A","IT26101523":"02A","IT26101946":"02A","IT26101247":"02A","IT26101432":"02A","IT26101301":"02A","IT26101870":"02A","IT26102015":"02A","IT26102107":"02A","IT26102076":"02A","IT26101430":"02A","IT26102017":"02A","IT26102023":"02A","IT26101365":"02A","IT26101490":"02A","IT26101268":"02A","IT26101250":"02A","IT26100718":"02B","IT26101955":"02B","IT26102116":"02B","IT26200228":"02B","IT26101524":"02B","IT26101962":"02B","IT26101628":"02B","IT26101324":"02B","IT26101353":"02B","IT26101801":"02B","IT26102141":"02B","IT26101531":"02B","IT26101889":"02B","IT26101453":"02B","IT26101964":"02B","IT26101658":"02B","IT26101369":"02B","IT26101370":"02B","IT26101319":"02B","IT26101225":"02B","IT26101340":"02B","IT26101337":"02B","IT26101942":"02B","IT26101427":"02B","IT26101469":"02B","IT26101789":"02B","IT26101230":"02B","IT26101953":"02B","IT26101344":"02B","IT26101465":"02B","IT26101639":"02C","IT26101660":"02C","IT26101456":"02C","IT26101285":"02C","IT26101275":"02C","IT26101806":"02C","IT26101528":"02C","IT26101533":"02C","IT26101956":"02C","IT26102112":"02C","IT26101570":"02C","IT26101214":"02C","IT26101223":"02C","IT26101401":"02C","IT26102106":"02C","IT26101313":"02C","IT26101787":"02C","IT26101802":"02C","IT26102113":"02C","IT26101295":"02C","IT26102110":"02C","IT26102108":"02C","IT26101479":"02C","IT26102012":"02C","IT26101716":"02C","IT26101272":"02C","IT26101277":"02C","IT26102114":"02C","IT26102039":"02C","IT26101525":"02D","IT26101520":"02D","IT26101513":"02D","IT26101351":"02D","IT26102115":"02D","IT26101299":"02D","IT26101334":"02D","IT26102150":"02D","IT26101470":"02D","IT26101438":"02D","IT26101421":"02D","IT26101809":"02D","IT26101526":"02D","IT26101482":"02D","IT26102149":"02D","IT26102065":"02D","IT26101822":"02D","IT26101491":"02D","IT26101480":"02D","IT26101349":"02D","IT26102046":"02D","IT26102109":"02D","IT26101362":"02D","IT26101496":"02D","IT26101750":"02D","IT26101212":"02D","IT26102030":"02D","IT26101508":"02D","IT26101795":"02D","IT26101372":"03A","IT26101293":"03A","IT26101646":"03A","IT26101618":"03A","IT26102021":"03A","IT26101966":"03A","IT26101720":"03A","IT26101891":"03A","IT26100262":"03A","IT26102019":"03A","IT26101996":"03A","IT26101968":"03A","IT26101662":"03A","IT26101420":"03A","IT26101355":"03A","IT26101303":"03A","IT26101655":"03A","IT26101568":"03A","IT26101932":"03A","IT26101373":"03A","IT26102003":"03A","IT26101488":"03A","IT26101919":"03A","IT26101248":"03A","IT26101900":"03A","IT26101941":"03A","IT26101950":"03A","IT26101604":"03A","IT26101389":"03A","IT26101812":"03A","IT26102142":"03B","IT26101917":"03B","IT26101743":"03B","IT26101696":"03B","IT26101935":"03B","IT26101954":"03B","IT26100693":"03B","IT26101622":"03B","IT26102034":"03B","IT26101690":"03B","IT26101770":"03B","IT26102058":"03B","IT26101428":"03B","IT26102032":"03B","IT26101631":"03B","IT26101929":"03B","IT26101322":"03B","IT26101807":"03B","IT26101573":"03B","IT26101361":"03B","IT26101577":"03B","IT26200749":"03B","IT26101297":"03B","IT26102127":"03B","IT26101599":"03B","IT26450013":"03B","IT26101414":"03B","IT26101958":"03B","IT26101498":"03B","IT26101398":"03B","IT26101412":"03C","IT26101984":"03C","IT26101908":"03C","IT26101417":"03C","IT26101474":"03C","IT26300323":"03C","IT26101625":"03C","IT26101410":"03C","IT26100543":"03C","IT26101725":"03C","IT26101406":"03C","IT26101635":"03C","IT26101364":"03C","IT26101429":"03C","IT26102075":"03C","IT26101803":"03C","IT26101582":"03C","IT26101653":"03C","IT26101377":"03C","IT26101978":"03C","IT26101203":"03C","IT26101796":"03C","IT26101936":"03C","IT26102111":"03C","IT26101904":"03C","IT26101825":"03C","IT26101913":"03C","IT26101494":"03C","IT26101613":"03C","IT26101823":"03D","IT26102143":"03D","IT26101400":"03D","IT26101434":"03D","IT26101980":"03D","IT26101986":"03D","IT26100739":"03D","IT26102048":"03D","IT26100407":"03D","IT26102148":"03D","IT26101317":"03D","IT26101883":"03D","IT26101925":"03D","IT26101379":"03D","IT26101606":"03D","IT26101909":"03D","IT26101619":"03D","IT26101595":"03D","IT26101376":"03D","IT26101882":"03D","IT26101767":"03D","IT26101937":"03D","IT26101222":"03D","IT26101475":"04A","IT26101396":"04A","IT26101307":"04A","IT26101495":"04A","IT26101407":"04A","IT26101995":"04A","IT26101464":"04A","IT26101722":"04A","IT26100189":"04A","IT26101793":"04A","IT26101258":"04A","IT26101719":"04A","IT26101306":"04A","IT26101617":"04A","IT26101342":"04A","IT26101765":"04A","IT26101300":"04A","IT26101752":"04A","IT26101263":"04A","IT26101305":"04A","IT26101276":"04A","IT26101685":"04A","IT26101397":"04A","IT26101450":"04B","IT26101267":"04B","IT26101753":"04B","IT26101418":"04B","IT26101745":"04B","IT26101694":"04B","IT26101755":"04B","IT26101442":"04B","IT26101817":"04B","IT26100122":"04B","IT26101776":"04B","IT26101451":"04B","IT26101575":"04B","IT26102182":"04B","IT26102196":"04B","IT26101288":"04B","IT26101385":"04B","IT26101760":"04B","IT26101304":"04B","IT26101723":"04B","IT26101633":"04B","IT26101458":"04B","IT26101290":"04B","IT26101375":"04B","IT26101492":"04B","IT26101477":"04B","IT26102178":"04B","IT26102188":"04B","IT26102232":"04B","IT26101423":"04C","IT26101729":"04C","IT26101387":"04C","IT26101289":"04C","IT26101926":"04C","IT26101298":"04C","IT26101730":"04C","IT26101309":"04C","IT26102101":"04C","IT26102190":"04C","IT26102197":"04C","IT26102212":"04C","IT26101965":"04C","IT26101875":"04D","IT26101785":"04D","IT26101327":"04D","IT26101483":"04D","IT26101281":"04D","IT26101366":"04D","IT26101747":"04D","IT26101532":"04D","IT26101708":"04D","IT26101749":"04D","IT26101759":"04D","IT26101764":"04D","IT26101758":"04D","IT26101310":"04D"};
+const EAC_GROUPS = loadPrivateRoster('eac-groups.json');
 const AI_SESSION_TIMEOUT = 30 * 60 * 1000;
 setInterval(() => {
     const now = Date.now();
@@ -355,17 +367,14 @@ let db = {
 
 // ─── WEB SERVER ───────────────────────────────────────────────────────────────
 const app = express();
+app.disable('x-powered-by');
+const setupGuard = createSetupGuard();
+const pairLimiter = createPairLimiter();
+let pairingInFlight = false;
 
-app.get('/health', (_, res) =>
-    res.status(200).json({
-        status: botStatus,
-        ready: botReady,
-        registered: Object.keys(db.registrations).length,
-        groups: Object.keys(db.waGroups).length,
-    })
-);
+app.get('/health', (_, res) => res.status(200).json({ status: 'ok' }));
 
-app.get('/', (_, res) => {
+app.get('/', setupGuard, (_, res) => {
     if (latestQR) {
         qrcode.toDataURL(latestQR, (err, url) => {
             if (err) return res.status(500).send('QR error');
@@ -400,7 +409,7 @@ small{color:#888}
   <button onclick="pair()">Get Pairing Code</button>
   <div id="result"></div>
 </div>
-<p><small>Created by Poojana Kaveesh | IT26101524</small></p>
+<p><small>Bot administration · private access only</small></p>
 <script>
 async function pair() {
   const phone = document.getElementById('phone').value.replace(/[^0-9]/g,'');
@@ -408,7 +417,7 @@ async function pair() {
   if (!phone || phone.length < 7) { res.textContent = '❌ Enter a valid number'; res.style.color='red'; return; }
   res.textContent = '⏳ Requesting code...'; res.style.color='#555';
   try {
-    const r = await fetch('/pair?phone=' + phone);
+    const r = await fetch('/pair', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone})});
     const d = await r.json();
     if (d.code) {
       res.innerHTML = '✅ Your pairing code:<br><span style="font-size:28px;letter-spacing:4px;color:#128C7E">' + d.code + '</span><br><small>WhatsApp → Linked Devices → Link with Phone Number</small>';
@@ -429,29 +438,41 @@ h1{color:${botReady?'#128C7E':'#888'}}</style></head>
 <body><h1>${botReady ? '✅ Bot Online' : '⏳ Starting...'}</h1>
 <p>Status: <b>${botStatus}</b> | Registered: <b>${Object.keys(db.registrations).length}</b> | WA Group Slots: <b>${slotCount}</b></p>
 <p>Data: <b>${DATA_PATH}</b></p>
-<p><small>Created by Poojana Kaveesh | IT26101524 | 94772197530</small></p>
+<p><small>Bot administration · private access only</small></p>
 </body></html>`);
     }
 });
 
-// Pairing code endpoint — GET /pair?phone=94761297530
-app.get('/pair', async (req, res) => {
-    const phone = (req.query.phone || '').replace(/[^0-9]/g, '');
-    if (!phone) return res.json({ error: 'Missing phone number' });
-    if (!sock)  return res.json({ error: 'Bot not connected yet — wait for QR page to show, then try again' });
-    if (botStatus === 'ready') return res.json({ error: 'Already linked — bot is online' });
+// Pairing is a restricted state-changing POST; no query-string phone numbers or public code logs.
+app.post('/pair', setupGuard, pairLimiter, express.json({ limit: '1kb' }), async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const origin = req.headers.origin;
+    if (!origin || !req.headers.host || !['https://' + req.headers.host, 'http://' + req.headers.host].includes(origin)) {
+        return res.status(403).json({ error: 'Invalid request origin' });
+    }
+    const phone = String(req.body?.phone || '').replace(/[^0-9]/g, '');
+    const allowed = String(process.env.WHATSAPP_PAIR_PHONE || '').replace(/[^0-9]/g, '');
+    if (!allowed || phone !== allowed || !/^\d{8,15}$/.test(phone)) {
+        return res.status(403).json({ error: 'Pairing number not authorized' });
+    }
+    if (!sock || botStatus === 'ready') return res.status(409).json({ error: 'Pairing not currently available' });
+    if (pairingInFlight) return res.status(429).json({ error: 'Pairing already in progress' });
+    pairingInFlight = true;
     try {
         const code = await sock.requestPairingCode(phone);
-        console.log(`🔑 Pairing code for ${phone}: ${code}`);
         res.json({ code });
-    } catch(e) {
-        console.error('Pairing code error:', e.message);
-        res.json({ error: e.message });
+    } catch (e) {
+        console.error('Pairing failed:', e?.name || 'request_error');
+        res.status(502).json({ error: 'Pairing temporarily unavailable' });
+    } finally {
+        pairingInFlight = false;
     }
 });
+app.get('/pair', (_req, res) => res.status(405).set('Allow', 'POST').end());
 
-const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🌐 HTTP on port ${PORT}`);
+const ADMIN_HOST = process.env.BOT_ADMIN_HOST || '127.0.0.1';
+const server = app.listen(PORT, ADMIN_HOST, () => {
+    console.log(`Bot administration listening on ${ADMIN_HOST}:${PORT}`);
     initData();
 });
 server.on('error', e => { console.error('💥 HTTP error:', e.message); process.exit(1); });
@@ -549,8 +570,10 @@ function trackUsage(cmd, jid) {
 const jidNum       = jid => (jid || '').replace(/@.*/, '').replace(/[^0-9]/g, '');
 const toJid        = num => `${num.replace(/[^0-9]/g, '')}@s.whatsapp.net`;
 const isSuperAdmin = jid => {
-    if (SUPER_ADMIN_LIDS.includes(jidNum(jid))) return true;
-    if (jidNum(jid) === jidNum(SUPER_ADMIN)) return true;
+    const number = jidNum(jid);
+    if (!number) return false;
+    if (SUPER_ADMIN_LIDS.includes(number)) return true;
+    if (SUPER_ADMIN && number === jidNum(SUPER_ADMIN)) return true;
     return false;
 };
 const isAdmin      = jid => isSuperAdmin(jid) || db.admins.some(a => jidNum(a) === jidNum(jid));

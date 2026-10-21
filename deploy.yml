@@ -23,6 +23,10 @@ jobs:
           script: |
             set -e
 
+            echo "==> Verifying private roster migration..."
+            test -s /data/students.json || { echo "Private student roster is not installed; deployment stopped safely"; exit 1; }
+            test -s /data/eac-groups.json || { echo "Private EAC roster is not installed; deployment stopped safely"; exit 1; }
+
             echo "==> Pulling latest code..."
             cd ~/whatsapp-bot
             git pull origin main
