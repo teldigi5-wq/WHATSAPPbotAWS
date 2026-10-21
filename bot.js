@@ -16,6 +16,7 @@ const PORT        = process.env.PORT || 8080;
 const SUPER_ADMIN = process.env.SUPER_ADMIN || '';
 const SUPER_ADMIN_LIDS = (process.env.SUPER_ADMIN_LIDS || '').split(',').map(s => s.trim()).filter(Boolean);
 const { createSetupGuard, createPairLimiter } = require('./security/setup-access');
+const { readBoundedImageResponse } = require('./security/media-response');
 
 
 async function callGroq(model, question, sys, history, maxTokens) {
@@ -2463,15 +2464,9 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                     body: JSON.stringify({ inputs: prompt + ', high quality, detailed, digital art' }),
                     signal: AbortSignal.timeout(60000)
                 });
-                const contentType = resp.headers.get('content-type') || '';
-                if (!resp.ok || !contentType.startsWith('image/')) {
-                    let detail = '';
-                    try { detail = JSON.stringify(await resp.json()); } catch(_) {}
-                    throw new Error(`HF HTTP ${resp.status} ${detail}`);
-                }
-                const buffer = Buffer.from(await resp.arrayBuffer());
-                if (buffer.length < 2000) throw new Error('HF image too small');
-                return buffer;
+                // Reject failure and oversized bodies before decoding the image.
+                if (!resp.ok) throw new Error(`HF HTTP ${resp.status}`);
+                return readBoundedImageResponse(resp);
             };
             // Fallback: Pollinations free anonymous tier (no seed/nologo — those now require payment)
             const fetchImagePollinations = async () => {
@@ -2482,12 +2477,7 @@ _💬 Reply to continue | *ENDCHAT* to end_`));
                     signal: AbortSignal.timeout(45000)
                 });
                 if (!resp.ok) throw new Error(`Pollinations HTTP ${resp.status}`);
-                const contentType = resp.headers.get('content-type') || '';
-                const buffer = Buffer.from(await resp.arrayBuffer());
-                if (!contentType.startsWith('image/') || buffer.length < 2000) {
-                    throw new Error(`Pollinations bad response (type=${contentType}, size=${buffer.length})`);
-                }
-                return buffer;
+                return readBoundedImageResponse(resp);
             };
             try {
                 let buffer;
