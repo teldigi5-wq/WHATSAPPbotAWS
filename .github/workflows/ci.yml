@@ -37,6 +37,7 @@ jobs:
         run: |
           node --check bot.js
           node --check ecosystem.config.js
+          node --check security/media-response.js
 
       - name: Validate JSON data files
         run: |
