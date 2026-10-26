@@ -33,9 +33,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Audit production dependencies (high severity)
-        run: npm audit --omit=dev --audit-level=high
-
       - name: Check JavaScript syntax
         run: |
           node --check bot.js
@@ -59,3 +56,6 @@ jobs:
           test -f package-lock.json
           test -f ecosystem.config.js
           test -f setup.sh
+
+      - name: Audit production dependencies (high severity)
+        run: npm audit --omit=dev --audit-level=high
