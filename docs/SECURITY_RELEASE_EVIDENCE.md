@@ -1,6 +1,6 @@
 # Security release evidence and review gates
 
-**Scope:** WHATSAPPbotAWS draft PR #3, assessed 26 October 2026. These are candidate code changes, not an authorized merge or deployment.
+**Scope:** WHATSAPPbotAWS merged security-remediation PR #3, assessed 26 October 2026. Security fixes are merged into main; this does not itself deploy the service or certify released binaries.
 
 ## Automated checks and defended boundaries
 
@@ -24,8 +24,8 @@ To verify that the scan remains valid, use the latest PR-head workflow result; o
 
 ## Release decision standard
 
-- Keep the PR draft until required checks on its **exact latest commit** pass.
-- Inspect the changed-file diff, ensure `main` is not overwritten, and require an approving reviewer.
+- For future security changes, require passing checks on the **exact PR head commit** before merging.
+- Inspect future diffs and require human review; these merged PRs passed automated CI, but this report is not an independent security assessment.
 - Never push API keys, account credentials, WhatsApp/Telegram session files or production customer data to a test log.
 - Sign and publish only after owner approval, preserve reproducible artifacts and a rollback point.
 - Label all claims precisely: **CI passed**, **packaged successfully**, **manual test performed**, or **not yet verified**. Never substitute one for another.
