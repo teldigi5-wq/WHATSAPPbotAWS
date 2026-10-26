@@ -4,6 +4,7 @@ const qrcode     = require('qrcode');
 const fs         = require('fs');
 const path       = require('path');
 const express    = require('express');
+const { createPairBodyParser } = require('./security/pair-body-parser');
 const P          = require('pino');
 
 // ─── CATCH ALL UNHANDLED ERRORS ───────────────────────────────────────────────
@@ -445,7 +446,7 @@ h1{color:${botReady?'#128C7E':'#888'}}</style></head>
 });
 
 // Pairing is a restricted state-changing POST; no query-string phone numbers or public code logs.
-app.post('/pair', setupGuard, pairLimiter, express.json({ limit: '1kb' }), async (req, res) => {
+app.post('/pair', setupGuard, pairLimiter, createPairBodyParser(), async (req, res) => {
     res.set('Cache-Control', 'no-store');
     const origin = req.headers.origin;
     if (!origin || !req.headers.host || !['https://' + req.headers.host, 'http://' + req.headers.host].includes(origin)) {
