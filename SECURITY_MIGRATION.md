@@ -1,7 +1,7 @@
 # Private roster and bot pairing safety
 
-This draft patch deliberately DOES NOT change production or \`main\`.
-It removes current-branch student records from the repository but **cannot remove public Git history, clones, or cached copies**.
+The private-roster security changes have been merged into the repository's main branch. **This does not prove that an EC2 host was migrated or production data was secured.**
+Current-branch student records were removed from the repository, but this **cannot remove public Git history, clones, or cached copies**.
 The historical student roster is an exposed data set; handle privacy response/notifications according to relevant obligations.
 
 ## Required preparation on the actual bot host (BEFORE merging)
