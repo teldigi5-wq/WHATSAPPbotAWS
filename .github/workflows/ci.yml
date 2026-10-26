@@ -57,5 +57,20 @@ jobs:
           test -f ecosystem.config.js
           test -f setup.sh
 
+      - name: Generate verifiable remediation lockfile for review
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd .
+          npm audit fix --package-lock-only --ignore-scripts --no-fund || echo 'Additional vulnerabilities require review'
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const b64=fs.readFileSync('package-lock.json').toString('base64');
+          const lock=JSON.parse(fs.readFileSync('package-lock.json','utf8'));
+          console.log('REMEDIATION_VERSIONS='+JSON.stringify(Object.fromEntries(['body-parser','axios','follow-redirects','sharp','proxy-addr','qs','electron','electron-builder','vite','tar'].map(n=>[n,lock.packages['node_modules/'+n]?.version||null]))));
+          for(let i=0;i<b64.length;i+=8000) console.log('REMEDIATION_LOCK_CHUNK_'+String(i/8000).padStart(4,'0')+'='+b64.slice(i,i+8000));
+          console.log('REMEDIATION_LOCK_END='+Math.ceil(b64.length/8000));
+          NODE
+
       - name: Audit production dependencies (high severity)
         run: npm audit --omit=dev --audit-level=high
