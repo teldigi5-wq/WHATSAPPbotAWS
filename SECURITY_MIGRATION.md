@@ -4,7 +4,7 @@ The private-roster security changes have been merged into the repository's main 
 Current-branch student records were removed from the repository, but this **cannot remove public Git history, clones, or cached copies**.
 The historical student roster is an exposed data set; handle privacy response/notifications according to relevant obligations.
 
-## Required preparation on the actual bot host (BEFORE merging)
+## Required preparation on the actual bot host (BEFORE deployment)
 
 1. Record the current running commit, back up /data and WhatsApp auth/session files to an encrypted, access-controlled location.
 2. While still on the existing checkout, provision a protected directory on the host:
@@ -15,7 +15,7 @@ The historical student roster is an exposed data set; handle privacy response/no
 3. Set private environment values (never commit them): \`DATA_PATH=/data\`, \`SUPER_ADMIN\`, optional \`SUPER_ADMIN_LIDS\`, \`BOT_SETUP_USER\` (minimum 4 characters), \`BOT_SETUP_PASSWORD\` (at least 20 randomly generated characters), \`WHATSAPP_PAIR_PHONE\` (only the bot number that may be paired).
 4. By default the bot listens only on \`127.0.0.1\`. For remote administration, use an SSH tunnel or an HTTPS-authenticated proxy. Do not expose raw HTTP or bind to \`0.0.0.0\` without independent firewall/TLS controls.
 5. Test student lookup, registration, EAC groups, messaging, WhatsApp QR login, pairing with the allowed number, and all admin commands on an isolated preview machine.
-6. Do not promote this patch until private-roster migration and smoke tests pass. Roll back to the recorded commit if needed, while keeping the data directory safe.
+6. Do not deploy this merged code to a running bot until private-roster migration and smoke tests pass. Roll back to the recorded commit if needed, while keeping the data directory safe.
 
 ### Verification
 
