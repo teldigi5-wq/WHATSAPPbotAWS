@@ -148,3 +148,10 @@ No real server restart, production verification or credential inspection is perf
 - [ ] Record sanitized application screenshots and operational runbooks.
 
 **Security reporting:** Follow [SECURITY.md](SECURITY.md). Never attach real rosters, session files, phone numbers, SSH keys or API secrets to public issues.
+
+
+---
+
+## AI handoff — 9 November 2026
+
+[Continuation checklist and verified repository snapshot](docs/AI_HANDOFF_2026-11-09.md). Start by comparing current main and open PR source with the recorded `ad1d0959b5b5` SHA. No deployment, live integration or client-safety acceptance is implied.
