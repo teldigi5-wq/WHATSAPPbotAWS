@@ -148,3 +148,7 @@ No real server restart, production verification or credential inspection is perf
 - [ ] Record sanitized application screenshots and operational runbooks.
 
 **Security reporting:** Follow [SECURITY.md](SECURITY.md). Never attach real rosters, session files, phone numbers, SSH keys or API secrets to public issues.
+
+## AI/developer continuation — 9 November 2026
+
+See the [source-aware handoff and next milestones](docs/AI_CONTINUATION_2026-11-09.md) before continuing this project. This is a documentation-only review branch; recheck current PR heads, CI and deployed state. No merge, new certification or production rollout is implied.
